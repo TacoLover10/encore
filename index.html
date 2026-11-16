@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Encore</title>
+  <meta name="theme-color" content="#121212" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo"><span class="logo-dot"></span>Encore</div>
+      <nav>
+        <a href="#home" data-view="home" class="nav-link active">🏠 Home</a>
+        <a href="#search" data-view="search" class="nav-link">🔍 Search</a>
+        <a href="#library" data-view="library" class="nav-link">📚 Your Library</a>
+        <a href="#stats" data-view="stats" class="nav-link">📊 Monthly Stats</a>
+      </nav>
+      <div class="sidebar-section">
+        <div class="sidebar-head">
+          <span>Playlists</span>
+          <button id="newPlaylistBtn" class="icon-btn" title="New playlist">＋</button>
+        </div>
+        <div id="playlistList" class="playlist-list"></div>
+      </div>
+    </aside>
+
+    <main id="main" class="main"></main>
+  </div>
+
+  <footer class="player">
+    <div class="now">
+      <img id="npArt" class="np-art" alt="" />
+      <div class="np-text">
+        <div id="npTitle" class="np-title">Nothing playing</div>
+        <div id="npArtist" class="np-artist"></div>
+      </div>
+      <button id="npLike" class="icon-btn like" title="Save to library">♡</button>
+    </div>
+    <div class="controls">
+      <div class="buttons">
+        <button id="shuffleBtn" class="icon-btn" title="Shuffle">🔀</button>
+        <button id="prevBtn" class="icon-btn" title="Previous">⏮</button>
+        <button id="playBtn" class="play-btn" title="Play/Pause">▶</button>
+        <button id="nextBtn" class="icon-btn" title="Next">⏭</button>
+        <button id="repeatBtn" class="icon-btn" title="Repeat">🔁</button>
+      </div>
+      <div class="progress">
+        <span id="curTime">0:00</span>
+        <input id="seek" type="range" min="0" max="1000" value="0" />
+        <span id="durTime">0:00</span>
+      </div>
+    </div>
+    <div class="volume">
+      <span>🔊</span>
+      <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" />
+    </div>
+  </footer>
+
+  <div id="modal" class="modal hidden"></div>
+  <div id="toast" class="toast hidden"></div>
+  <audio id="audio" preload="auto"></audio>
+  <script src="app.js"></script>
+</body>
+</html>
