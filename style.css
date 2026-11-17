@@ -344,3 +344,8 @@ tr.track:hover .t-actions button { opacity: 1; }
   .mixer { padding: 18px 14px 40px; }
   .mx-decks { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- Sync with a code ---------- */
+.sync-row { display: flex; gap: 10px; flex-wrap: wrap; max-width: 640px; }
+.sync-row input { flex: 1 1 180px; width: auto; }
+.sync-note { color: var(--muted); font-size: 13px; margin: 10px 0 0; max-width: 60ch; line-height: 1.5; }
