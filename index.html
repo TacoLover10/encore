@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Encore</title>
   <meta name="theme-color" content="#121212" />
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
 <body>
   <div class="app">
@@ -53,19 +53,47 @@
       </div>
     </div>
     <div class="volume">
+      <button id="lyricsBtn" class="icon-btn" title="Lyrics">🎤</button>
+      <button id="videoBtn" class="icon-btn" title="Show / hide video">📺</button>
       <span>🔊</span>
       <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" />
     </div>
   </footer>
 
   <div id="videoBox" class="video-box hidden">
-    <div class="video-head"><span>Now playing</span><button id="videoSize" class="icon-btn" title="Bigger / smaller">⤢</button></div>
+    <div class="video-head"><span>Now playing</span><span><button id="videoSize" class="icon-btn" title="Bigger / smaller">⤢</button><button id="videoClose" class="icon-btn" title="Close video">✕</button></span></div>
     <div class="video-frame"><div id="ytPlayer"></div></div>
   </div>
+
+  <section id="np" class="np hidden" aria-label="Now playing">
+    <div id="npBg" class="np-bg"></div>
+    <div class="np-inner">
+      <div class="np-top">
+        <button id="npClose" class="icon-btn" title="Close (Esc)">⌄</button>
+        <div class="np-tabs">
+          <button class="tab" data-np-tab="song">Song</button>
+          <button class="tab" data-np-tab="video">Video</button>
+          <button class="tab" data-np-tab="lyrics">Lyrics</button>
+        </div>
+        <span class="np-spacer"></span>
+      </div>
+      <div class="np-stage">
+        <img id="npBigArt" class="np-big-art" alt="" />
+        <div id="npVideoSlot" class="np-video-slot hidden"></div>
+        <div id="npLyrics" class="np-lyrics hidden"></div>
+      </div>
+      <div class="np-meta">
+        <div style="min-width:0"><div id="npSongTitle" class="np-song-title"></div><div id="npSongArtist" class="np-song-artist"></div></div>
+        <button id="npLike2" class="icon-btn like" title="Like">♡</button>
+      </div>
+      <div class="np-progress"><span id="npCur">0:00</span><input id="npSeek" type="range" min="0" max="1000" value="0" /><span id="npDur">0:00</span></div>
+    </div>
+  </section>
 
   <div id="modal" class="modal hidden"></div>
   <div id="toast" class="toast hidden"></div>
   <audio id="audio" preload="auto"></audio>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
+  <script src="np.js?v=5"></script>
 </body>
 </html>
