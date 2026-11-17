@@ -735,6 +735,9 @@
   function viewLibrary() {
     main.innerHTML = `${mobileNav}<h1>Your Library</h1>
       <div class="row" style="margin-bottom:20px"><button class="btn" id="libNew">${icon("plus")} New playlist</button><a class="btn ghost" href="#files">${icon("upload")} Upload your music</a></div>
+      <h2 style="margin-top:8px">Sync with a code</h2>
+      <div id="syncBox"></div>
+      <h2>Your collection</h2>
       <div class="grid">
         <a class="card" href="#liked"><div class="ph">${icon("heartFill")}</div><div class="card-title">Liked Songs</div><div class="card-sub">${state.liked.length} songs</div></a>
         <a class="card" href="#files"><div class="ph">${icon("folder")}</div><div class="card-title">My Files</div><div class="card-sub">Your uploads</div></a>
@@ -744,9 +747,7 @@
       </div>
       <h2>Backup</h2>
       <p class="sub" style="margin:0 0 12px">Your playlists and stats live in this browser. Export them to move to another device.</p>
-      <div class="row"><button class="btn ghost" id="exportBtn">${icon("download")} Export data</button><label class="btn ghost">${icon("upload")} Import data<input type="file" id="importIn" accept=".json" hidden></label></div>
-      <h2>Sync with a code</h2>
-      <div id="syncBox"></div>`;
+      <div class="row"><button class="btn ghost" id="exportBtn">${icon("download")} Export data</button><label class="btn ghost">${icon("upload")} Import data<input type="file" id="importIn" accept=".json" hidden></label></div>`;
     $("#libNew").onclick = () => $("#newPlaylistBtn").click();
     $("#exportBtn").onclick = () => {
       const data = { app: "encore", version: 1, playlists: state.playlists, liked: state.liked, history: state.history };
@@ -925,11 +926,30 @@
     document.querySelectorAll(".nav-link").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
     renderSidebar();
     main.scrollTop = 0;
-    ({ home: viewHome, search: viewSearch, library: viewLibrary, liked: viewLiked, files: viewFiles, stats: viewStats,
+    ({ home: viewHome, search: viewSearch, library: viewLibrary, sync: viewLibrary, liked: viewLiked, files: viewFiles, stats: viewStats,
        playlist: () => viewPlaylist(arg) }[view] || viewHome)();
   }
   window.addEventListener("hashchange", route);
   route();
+
+  // iPhone: no pinch or double-tap zooming
+  ["gesturestart", "gesturechange", "gestureend"].forEach((ev) => document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
+
+  // Pick up new versions of Encore right away (phones can hold on to an old copy).
+  // Only reloads when nothing is playing, so it never cuts off a song.
+  const versionsOf = (s) => (String(s).match(/\.(?:js|css)\?v=\d+/g) || []).sort().join(" ");
+  setTimeout(async () => {
+    try {
+      const html = await fetch(location.pathname + "?fresh=" + Date.now(), { cache: "no-store" }).then((r) => r.text());
+      const mine = versionsOf([...document.querySelectorAll("script[src], link[href]")].map((e) => e.getAttribute("src") || e.getAttribute("href")).join(" "));
+      const latest = versionsOf(html);
+      const key = "encore:updated:" + latest;
+      if (latest && mine && latest !== mine && !sessionStorage.getItem(key) && (!state.current || engine.isPaused())) {
+        sessionStorage.setItem(key, "1");
+        location.reload();
+      }
+    } catch {}
+  }, 2500);
   // Warm up the YouTube player in the background so the first song starts quickly
   setTimeout(() => loadYT(), 1500);
 
