@@ -372,6 +372,23 @@
     if (state.index > 0) { state.index--; loadAndPlay(); }
   }
 
+  // Keep the screen awake while music plays, so the phone's auto-sleep doesn't stop it.
+  // (Locking the phone yourself still pauses YouTube songs; your own files keep playing.)
+  let wakeLock = null, wakeBusy = false;
+  async function syncWakeLock() {
+    if (!("wakeLock" in navigator) || wakeBusy) return;
+    const playing = (state.current && !engine.isPaused()) || !!document.querySelector(".deck.live");
+    const want = playing && document.visibilityState === "visible";
+    if (want === !!wakeLock) return;
+    wakeBusy = true;
+    try {
+      if (want) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => (wakeLock = null)); }
+      else { await wakeLock.release(); wakeLock = null; }
+    } catch {}
+    wakeBusy = false;
+  }
+  document.addEventListener("visibilitychange", syncWakeLock);
+
   // Progress bar + listening-time tracking for stats
   let lastTick = null;
   setInterval(() => {
@@ -389,6 +406,7 @@
       $("#durTime").textContent = fmt(dur);
     }
     updatePlayBtn();
+    syncWakeLock();
   }, 500);
   audio.addEventListener("pause", () => { if (mode === "audio") flushSession(); });
   audio.addEventListener("ended", () => { if (mode === "audio") next(true); });
