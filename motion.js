@@ -41,7 +41,7 @@
       function done() { clearTimeout(t); delete window[cb]; s.remove(); }
       window[cb] = (d) => { done(); res(d); };
       s.onerror = () => { done(); rej(new Error("failed")); };
-      s.src = `${url}${url.includes("?") ? "&" : "?"}output=jsonp&callback=${cb}`;
+      s.src = `${url}${url.includes("?") ? "&" : "?"}${/deezer\.com/.test(url) ? "output=jsonp&" : ""}callback=${cb}`;
       document.head.appendChild(s);
     });
   }
