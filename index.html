@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Encore" />
+  <meta name="format-detection" content="telephone=no" />
   <title>Encore</title>
   <meta name="theme-color" content="#1a1424" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -13,7 +18,7 @@
   <link rel="dns-prefetch" href="https://lrclib.net" />
   <link rel="dns-prefetch" href="https://api.deezer.com" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400..700&display=swap" />
-  <link rel="stylesheet" href="style.css?v=18" />
+  <link rel="stylesheet" href="style.css?v=19" />
 </head>
 <body>
   <div class="app">
@@ -25,6 +30,7 @@
         <a href="#library" data-view="library" class="nav-link"><span data-icon="library"></span> Your Library</a>
         <a href="#stats" data-view="stats" class="nav-link"><span data-icon="stats"></span> Monthly Stats</a>
         <a href="#mix" data-view="mix" class="nav-link"><span data-icon="mixer"></span> Mixer</a>
+        <a href="#sync" data-view="sync" class="nav-link"><span data-icon="cloud"></span> Sync code</a>
       </nav>
       <div class="sidebar-section">
         <div class="sidebar-head">
@@ -69,6 +75,14 @@
     </div>
   </footer>
 
+  <nav class="tabbar" aria-label="Main">
+    <a href="#home" data-view="home" class="nav-link"><span data-icon="home"></span><span>Home</span></a>
+    <a href="#search" data-view="search" class="nav-link"><span data-icon="search"></span><span>Search</span></a>
+    <a href="#library" data-view="library" class="nav-link"><span data-icon="library"></span><span>Library</span></a>
+    <a href="#stats" data-view="stats" class="nav-link"><span data-icon="stats"></span><span>Stats</span></a>
+    <a href="#mix" data-view="mix" class="nav-link"><span data-icon="mixer"></span><span>Mixer</span></a>
+  </nav>
+
   <div id="videoBox" class="video-box hidden">
     <div class="video-head"><span>Now playing</span><span><button id="videoSize" class="icon-btn" title="Bigger / smaller"><span data-icon="expand"></span></button><button id="videoClose" class="icon-btn" title="Close video"><span data-icon="close"></span></button></span></div>
     <div class="video-frame"><div id="ytPlayer"></div></div>
@@ -102,11 +116,11 @@
   <div id="modal" class="modal hidden"></div>
   <div id="toast" class="toast hidden"></div>
   <audio id="audio" preload="auto"></audio>
-  <script src="icons.js?v=16"></script>
-  <script src="app.js?v=18"></script>
+  <script src="icons.js?v=19"></script>
+  <script src="app.js?v=19"></script>
   <script src="np.js?v=10"></script>
   <script src="explicit.js?v=10"></script>
   <script src="mixer.js?v=16"></script>
-  <script src="sync.js?v=18"></script>
+  <script src="sync.js?v=19"></script>
 </body>
 </html>
