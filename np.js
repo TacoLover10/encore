@@ -18,11 +18,13 @@
     ui.open = true;
     if (tab) ui.tab = tab;
     np.classList.remove("hidden");
+    document.body.classList.add("np-open");
     render();
   }
   function closeNP() {
     ui.open = false;
     np.classList.add("hidden");
+    document.body.classList.remove("np-open");
     placeVideo();
   }
 

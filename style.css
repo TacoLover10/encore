@@ -471,3 +471,20 @@ input[type="password"]:focus { border-color: var(--accent); background: var(--pa
   .player .volume input, .player .volume > span { display: none; }
 }
 @media (max-width: 800px) { .player #shuffleBtn, .player #repeatBtn { display: inline-grid; } }
+
+/* Now Playing open: one set of controls. The player bar keeps the progress bar and buttons;
+   Now Playing keeps the title and the version picker. */
+body.np-open .np-progress, body.np-open #npQueue, body.np-open #npLike2 { display: none; }
+@media (max-width: 800px) {
+  body.np-open { --player-h: 104px; }
+  body.np-open .player { grid-template-rows: 20px 52px; }
+  body.np-open .player #npArt, body.np-open .player .np-text, body.np-open .player #lyricsBtn, body.np-open .player #videoBtn { display: none; }
+  body.np-open .player .progress { grid-area: 1 / 1 / 2 / 8; }
+  body.np-open .player #npLike { grid-area: 2 / 1; }
+  body.np-open .player #shuffleBtn { grid-area: 2 / 2; }
+  body.np-open .player #prevBtn { grid-area: 2 / 3; }
+  body.np-open .player #playBtn { grid-area: 2 / 4; }
+  body.np-open .player #nextBtn { grid-area: 2 / 5; }
+  body.np-open .player #repeatBtn { grid-area: 2 / 6; }
+  body.np-open .player #queueBtn { grid-area: 2 / 7; }
+}
