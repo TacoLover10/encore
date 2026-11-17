@@ -27,10 +27,25 @@
     download: '<path d="M12 4v12M7 11l5 5 5-5M4 20h16"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     mixer: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+    cloud: '<path d="M7 18.5h10.5a4 4 0 0 0 .4-8 6 6 0 0 0-11.6-1.4A4.6 4.6 0 0 0 7 18.5z"/>',
     swap: '<path d="M7 4L3 8l4 4"/><path d="M3 8h14"/><path d="M17 12l4 4-4 4"/><path d="M21 16H7"/>',
   };
   window.icon = (name) =>
     `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ""}</svg>`;
+  // Home-screen icon for iPhone: the pink Encore orb on plum, drawn here so no image file is needed
+  try {
+    const c = document.createElement("canvas"); c.width = c.height = 180;
+    const x = c.getContext("2d");
+    x.fillStyle = "#1a1424"; x.fillRect(0, 0, 180, 180);
+    const glow = x.createRadialGradient(90, 90, 0, 90, 90, 120); glow.addColorStop(0, "#3a2054"); glow.addColorStop(1, "#1a1424");
+    x.fillStyle = glow; x.fillRect(0, 0, 180, 180);
+    const orb = x.createRadialGradient(73, 73, 0, 90, 90, 86);
+    orb.addColorStop(0, "#ffd0e0"); orb.addColorStop(0.45, "#ff4f8b"); orb.addColorStop(1, "#8a1d48");
+    x.fillStyle = orb; x.beginPath(); x.arc(90, 90, 56, 0, Math.PI * 2); x.fill();
+    const link = document.createElement("link"); link.rel = "apple-touch-icon"; link.href = c.toDataURL("image/png");
+    document.head.appendChild(link);
+  } catch {}
+
   // Fill any <span data-icon="..."> placeholders in the page
   document.querySelectorAll("[data-icon]").forEach((el) => (el.innerHTML = window.icon(el.dataset.icon)));
 })();
