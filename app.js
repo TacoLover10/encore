@@ -35,6 +35,7 @@
     playlists: store.get("playlists", []),     // [{id, name, created, tracks:[track]}]
     liked: store.get("liked", []),             // [track]
     history: store.get("history", []),         // [{track, ts, secs}]
+    recent: store.get("recent", []),           // last 5 searches [{q, at, track}]
     queue: [], index: -1,
     shuffle: store.get("shuffle", false),
     repeat: store.get("repeat", "off"),        // off | all | one
@@ -106,10 +107,23 @@
   }
   const cleanArtist = (s) => String(s || "Unknown artist").replace(/\s+-\s+Topic$/i, "");
 
-  async function ytSearch(q, kind = "songs") {
-    const errors = [];
-    for (const [type, base] of mirrors()) {
-      try {
+  // Ask three mirrors at once and use whichever answers first, and remember answers for this visit
+  const searchMemo = new Map();
+  function ytSearch(q, kind = "songs") {
+    const key = kind + "|" + q.toLowerCase();
+    if (searchMemo.has(key)) return searchMemo.get(key);
+    const p = ytSearchRace(q, kind).catch((e) => { searchMemo.delete(key); throw e; });
+    searchMemo.set(key, p);
+    return p;
+  }
+  async function ytSearchRace(q, kind) {
+    const list = mirrors();
+    for (let i = 0; i < list.length; i += 3) {
+      try { return await Promise.any(list.slice(i, i + 3).map(([type, base]) => ytSearchOne(type, base, q, kind))); } catch {}
+    }
+    throw new Error("All search mirrors are down right now");
+  }
+  async function ytSearchOne(type, base, q, kind) {
         let tracks;
         if (type === "piped") {
           const filter = kind === "songs" ? "music_songs" : "videos";
@@ -141,10 +155,6 @@
         if (!tracks.length && kind === "songs") throw new Error("empty");
         store.set("mirror", base);
         return tracks;
-      } catch (e) { errors.push(base + ": " + e.message); }
-    }
-    console.warn("All YouTube mirrors failed", errors);
-    throw new Error("All search mirrors are down right now");
   }
 
   // "All" search: official songs + every other upload (remixes, parodies, covers), best matches first
@@ -396,12 +406,40 @@
   }
   function endSession() { flushSession(); state.session = null; }
 
+  // Tint the main panel with the colors of the song's artwork
+  let ambientFor = null;
+  function setAmbient(src) {
+    if (src === ambientFor) return;
+    ambientFor = src;
+    const root = document.documentElement.style;
+    if (!src) return root.removeProperty("--ambient");
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (ambientFor !== src) return;
+      try {
+        const c = document.createElement("canvas"); c.width = c.height = 16;
+        const x = c.getContext("2d"); x.drawImage(img, 0, 0, 16, 16);
+        const d = x.getImageData(0, 0, 16, 16).data;
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+          const w = (mx - mn) / 255 + 0.05;   // favor colorful pixels over greys
+          r += d[i] * w; g += d[i + 1] * w; b += d[i + 2] * w; n += w;
+        }
+        root.setProperty("--ambient", `rgb(${(r / n) | 0}, ${(g / n) | 0}, ${(b / n) | 0})`);
+      } catch {}
+    };
+    img.src = src;
+  }
+
   function updatePlayBtn() { const k = engine.isPaused() ? "play" : "pause", b = $("#playBtn"); if (b.dataset.k !== k) { b.dataset.k = k; b.innerHTML = icon(k); } }
   function updateNowPlaying() {
     const t = state.current;
     $("#npTitle").innerHTML = t ? esc(t.title) + " " + badge(t) : "Nothing playing";
     $("#npArtist").textContent = t ? t.artist : "";
     $("#npArt").src = t?.art || "";
+    setAmbient(t && t.art);
     $("#npLike").innerHTML = icon(t && isLiked(t) ? "heartFill" : "heart");
     $("#npLike").classList.toggle("on", !!(t && isLiked(t)));
     document.title = t ? `${t.title} · ${t.artist}` : "Encore";
@@ -507,8 +545,8 @@
     if (!tracks.length) return `<div class="empty">${ctx.empty || "No songs here yet."}</div>`;
     return `<table class="tracks"><thead><tr><th class="t-num">#</th><th>Title</th><th style="text-align:right">${icon("clock")}</th><th></th></tr></thead><tbody>
       ${tracks.map((t, i) => `<tr class="track ${state.current?.id === t.id ? "playing" : ""}" data-i="${i}" data-id="${esc(t.id)}">
-        <td class="t-num">${i + 1}</td>
-        <td><div class="t-main">${t.art ? `<img src="${esc(t.art)}" loading="lazy" alt="">` : `<img alt="">`}
+        <td class="t-num"><span class="n">${i + 1}</span><span class="pi">${icon("play")}</span></td>
+        <td><div class="t-main">${t.art ? `<img src="${esc(t.art)}" loading="lazy" decoding="async" alt="">` : `<img alt="">`}
           <div style="min-width:0"><div class="t-title">${esc(t.title)} ${badge(t)}</div><div class="t-artist">${esc(t.artist)}</div></div></div></td>
         <td class="t-src" style="text-align:right">${t.duration ? fmt(t.duration) : ""}</td>
         <td class="t-actions">
@@ -523,6 +561,7 @@
       const i = +tr.dataset.i, t = tracks[i];
       tr.ondblclick = () => playQueue(tracks, i);
       tr.querySelector(".t-main").onclick = () => playQueue(tracks, i);
+      tr.querySelector(".t-num").onclick = () => playQueue(tracks, i);
       tr.querySelector("[data-like]").onclick = (e) => { e.stopPropagation(); toggleLike(t); };
       tr.querySelector("[data-add]").onclick = (e) => { e.stopPropagation(); addToPlaylistMenu(t); };
       const rm = tr.querySelector("[data-remove]");
@@ -531,7 +570,7 @@
   }
   function cardGrid(tracks, cls = "grid") {
     return `<div class="${cls}">${tracks.map((t, i) => `<div class="card" data-i="${i}">
-      ${t.art ? `<img src="${esc(t.art)}" loading="lazy" alt="">` : `<div class="ph">${icon("note")}</div>`}
+      ${t.art ? `<img src="${esc(t.art)}" loading="lazy" decoding="async" alt="">` : `<div class="ph">${icon("note")}</div>`}
       <button class="card-play" title="Play">${icon("play")}</button>
       <div class="card-title">${esc(t.title)}</div><div class="card-sub">${esc(t.artist)}</div></div>`).join("")}</div>`;
   }
@@ -608,12 +647,13 @@
     const setTab = (t) => { lastTab = t; tabs.forEach((b) => b.classList.toggle("active", b.dataset.t === t)); };
     tabs.forEach((b) => (b.onclick = () => { setTab(b.dataset.t); run(); }));
     setTab(lastTab);
-    q.oninput = () => { clearTimeout(timer); timer = setTimeout(run, 450); };
+    q.oninput = () => { clearTimeout(timer); timer = setTimeout(run, 300); };
+    q.onkeydown = (e) => { if (e.key === "Enter" && q.value.trim()) { clearTimeout(timer); addRecent(q.value.trim(), null); run(); } };
 
     async function run() {
       const term = q.value.trim(); lastQuery = term;
       const box = $("#results");
-      if (!term) { box.innerHTML = `<div class="empty">Search any song, artist or album.</div>`; return; }
+      if (!term) { renderRecent(box, (again) => { q.value = again; addRecent(again, null); run(); }); return; }
       box.innerHTML = `<div class="empty">Searching…</div>`;
       const tab = lastTab;
       const key = tab + ":" + term.toLowerCase();
@@ -629,8 +669,49 @@
       const tracks = state.searchCache[key];
       box.innerHTML = trackTable(tracks, { empty: "No results." });
       bindTracks(box, tracks);
+      // Remember this search, and the song you picked from it
+      box.querySelectorAll("tr.track").forEach((tr) => {
+        const pick = () => addRecent(term, tracks[+tr.dataset.i]);
+        tr.querySelector(".t-main").addEventListener("click", pick);
+        tr.querySelector(".t-num").addEventListener("click", pick);
+      });
     }
     run();
+  }
+
+  // ---------------- Recent searches ----------------
+  function addRecent(q, track) {
+    const key = q.toLowerCase();
+    const old = state.recent.find((r) => r.q.toLowerCase() === key);
+    const entry = { q, at: Date.now(), track: track ? slim(track) : (old && old.track) || null };
+    state.recent = [entry, ...state.recent.filter((r) => r.q.toLowerCase() !== key)].slice(0, 5);
+    save("recent");
+  }
+  function renderRecent(box, searchAgain) {
+    if (!state.recent.length) {
+      box.innerHTML = `<div class="empty">Search any song, artist or album. Your last 5 searches, and the song you played from each, will show up here.</div>`;
+      return;
+    }
+    box.innerHTML = `<div class="recent-head"><h2>Recent searches</h2><button class="link-btn" id="clearRecent">Clear all</button></div>
+      <div class="recent">${state.recent.map((r, i) => `<div class="recent-item" data-ri="${i}">
+        ${r.track && r.track.art ? `<img src="${esc(r.track.art)}" alt="" loading="lazy" decoding="async">` : `<div class="r-ph">${icon("search")}</div>`}
+        <div class="r-main" title="${r.track ? "Play" : "Search again"}">
+          <div class="r-title">${esc(r.track ? r.track.title : r.q)}</div>
+          <div class="r-q">${r.track ? `${esc(r.track.artist)}, from your search “${esc(r.q)}”` : "No song played from this search yet"}</div>
+        </div>
+        ${r.track ? `<button class="icon-btn" data-play title="Play">${icon("play")}</button>` : ""}
+        <button class="icon-btn" data-again title="Search “${esc(r.q)}” again">${icon("search")}</button>
+        <button class="icon-btn" data-del title="Remove">${icon("close")}</button>
+      </div>`).join("")}</div>`;
+    box.querySelectorAll(".recent-item").forEach((el) => {
+      const r = state.recent[+el.dataset.ri];
+      const play = () => r.track ? playQueue([r.track], 0) : searchAgain(r.q);
+      el.querySelector(".r-main").onclick = play;
+      const p = el.querySelector("[data-play]"); if (p) p.onclick = play;
+      el.querySelector("[data-again]").onclick = () => searchAgain(r.q);
+      el.querySelector("[data-del]").onclick = () => { state.recent = state.recent.filter((x) => x !== r); save("recent"); renderRecent(box, searchAgain); };
+    });
+    $("#clearRecent").onclick = () => { state.recent = []; save("recent"); renderRecent(box, searchAgain); };
   }
 
   function viewLibrary() {
@@ -829,6 +910,8 @@
   }
   window.addEventListener("hashchange", route);
   route();
+  // Warm up the YouTube player in the background so the first song starts quickly
+  setTimeout(() => loadYT(), 1500);
 
   // Shared with np.js (Now Playing screen + lyrics)
   window.Encore = { state, engine, esc, fmt, store, toast, timeoutFetch, toggleLike, isLiked, switchVersion, getMode: () => mode };
