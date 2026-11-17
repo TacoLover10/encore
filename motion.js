@@ -25,10 +25,11 @@
   sheen.className = "np-cover-sheen";
   cover.append(glow, art, sheen);
 
-  const cache = store.get("motion2", {});
+  const cache = store.get("motion3", {});
   const norm = (s) => String(s || "").toLowerCase().replace(/[’']/g, "")
     .replace(/\s*[\(\[][^\)\]]*[\)\]]/g, " ").replace(/\b(feat|ft)\.?\s.*$/, "")
     .replace(/[^a-z0-9]+/g, " ").trim();
+  const sameArtist = (ra, na) => !!ra && (ra === na || na.startsWith(ra + " ") || ra.startsWith(na + " "));
   const SKIP = /\b(live|lyrics?|lyric video|reaction|parody|interview|commentary|mix|mixtape|full album|cover|karaoke|instrumental|slowed|sped up|nightcore|8d)\b/i;
 
   let n = 0;
@@ -56,7 +57,7 @@
     const s = await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(na + " " + nt)}&limit=10`);
     const hit = ((s && s.data) || []).find((r) => {
       const ra = norm(r.artist && r.artist.name), rt = norm(r.title);
-      return ra && (na.includes(ra) || ra.includes(na)) && (rt === nt || rt.startsWith(nt + " ") || nt.startsWith(rt + " "));
+      return sameArtist(ra, na) && (rt === nt || rt.startsWith(nt + " ") || nt.startsWith(rt + " "));
     });
     if (!hit) return fromApple(nt, na);                                            // Deezer doesn't carry it: ask Apple's catalog
     if ((hit.rank || 0) < 400000) return null;                                     // obscure tracks don't need one
@@ -75,7 +76,7 @@
     const d = await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(na + " " + nt)}&entity=song&limit=10`);
     const r = ((d && d.results) || []).find((x) => {
       const ra = norm(x.artistName), rt = norm(x.trackName);
-      return ra && (na.includes(ra) || ra.includes(na)) && (rt === nt || rt.startsWith(nt + " ") || nt.startsWith(rt + " "));
+      return sameArtist(ra, na) && (rt === nt || rt.startsWith(nt + " ") || nt.startsWith(rt + " "));
     });
     if (!r) return null;
     const g = String(r.primaryGenreName || "").toLowerCase();
@@ -103,7 +104,7 @@
     if (!t) return;
     if (!(id in cache)) {
       try { cache[id] = await decide(t); } catch { return; }   // try again next time if Deezer didn't answer
-      store.set("motion2", cache);
+      store.set("motion3", cache);
     }
     if (current === id) apply(cache[id]);
   }
