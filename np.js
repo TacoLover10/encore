@@ -5,6 +5,7 @@
   const E = window.Encore;
   if (!E) return;
   const $ = (s) => document.querySelector(s);
+  const icon = window.icon;
   const { state, engine, esc, fmt, store, toast, timeoutFetch } = E;
 
   const np = $("#np");
@@ -52,7 +53,8 @@
     $("#npBigArt").src = (t && t.art) || "";
     $("#npSongTitle").textContent = t ? t.title : "Nothing playing";
     $("#npSongArtist").textContent = t ? t.artist : "";
-    $("#npLike2").textContent = t && E.isLiked(t) ? "♥" : "♡";
+    $("#npLike2").innerHTML = icon(t && E.isLiked(t) ? "heartFill" : "heart");
+    $("#npSwitch").classList.toggle("hidden", !isYT());
     $("#npLike2").classList.toggle("on", !!(t && E.isLiked(t)));
     $("#npBigArt").classList.toggle("hidden", ui.tab !== "song");
     $("#npVideoSlot").classList.toggle("hidden", ui.tab !== "video");
@@ -152,6 +154,7 @@
   // ---------------- Wiring ----------------
   np.querySelectorAll("[data-np-tab]").forEach((b) => (b.onclick = () => { ui.tab = b.dataset.npTab; render(); }));
   $("#npClose").onclick = closeNP;
+  $("#npSwitch").onclick = () => E.switchVersion();
   $("#npSeek").oninput = (e) => { const d = engine.duration(); if (d) engine.seek((e.target.value / 1000) * d); };
   $("#npLike2").onclick = () => { if (state.current) { E.toggleLike(state.current); render(); } };
   $("#npArt").onclick = () => state.current && openNP();
@@ -162,7 +165,7 @@
   };
   $("#videoClose").onclick = () => {
     ui.videoClosed = true; store.set("videoClosed", true); placeVideo();
-    toast("Video closed — tap 📺 to bring it back");
+    toast("Video closed — tap the video button to bring it back");
   };
   $("#videoBtn").onclick = () => {
     if (!isYT()) return toast("This song has no video");
