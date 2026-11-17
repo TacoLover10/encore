@@ -18,7 +18,7 @@
   <link rel="dns-prefetch" href="https://lrclib.net" />
   <link rel="dns-prefetch" href="https://api.deezer.com" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400..700&display=swap" />
-  <link rel="stylesheet" href="style.css?v=20" />
+  <link rel="stylesheet" href="style.css?v=21" />
 </head>
 <body>
   <div class="app">
@@ -30,13 +30,9 @@
         <a href="#library" data-view="library" class="nav-link"><span data-icon="library"></span> Your Library</a>
         <a href="#stats" data-view="stats" class="nav-link"><span data-icon="stats"></span> Monthly Stats</a>
         <a href="#mix" data-view="mix" class="nav-link"><span data-icon="mixer"></span> Mixer</a>
-        <a href="#sync" data-view="sync" class="nav-link"><span data-icon="cloud"></span> Sync code</a>
       </nav>
       <div class="sidebar-section">
-        <div class="sidebar-head">
-          <span>Playlists</span>
-          <button id="newPlaylistBtn" class="icon-btn" title="New playlist"><span data-icon="plus"></span></button>
-        </div>
+        <div class="sidebar-head"><span>Your music</span></div>
         <div id="playlistList" class="playlist-list"></div>
       </div>
     </aside>
@@ -68,6 +64,7 @@
       </div>
     </div>
     <div class="volume">
+      <button id="queueBtn" class="icon-btn" title="Queue"><span data-icon="queue"></span></button>
       <button id="lyricsBtn" class="icon-btn" title="Lyrics"><span data-icon="mic"></span></button>
       <button id="videoBtn" class="icon-btn" title="Show / hide video"><span data-icon="video"></span></button>
       <span data-icon="volume"></span>
@@ -107,20 +104,24 @@
       </div>
       <div class="np-meta">
         <div style="min-width:0"><div id="npSongTitle" class="np-song-title"></div><div id="npSongArtist" class="np-song-artist"></div></div>
-        <span class="np-actions"><button id="npSwitch" class="icon-btn" title="Sounds censored? Switch to another version"><span data-icon="swap"></span></button><button id="npLike2" class="icon-btn like" title="Like"><span data-icon="heart"></span></button></span>
+        <span class="np-actions"><button id="npQueue" class="icon-btn" title="Queue"><span data-icon="queue"></span></button><button id="npSwitch" class="icon-btn" title="Sounds censored? Switch to another version"><span data-icon="swap"></span></button><button id="npLike2" class="icon-btn like" title="Like"><span data-icon="heart"></span></button></span>
       </div>
       <div class="np-progress"><span id="npCur">0:00</span><input id="npSeek" type="range" min="0" max="1000" value="0" /><span id="npDur">0:00</span></div>
     </div>
   </section>
 
+  <aside id="queuePanel" class="queue-panel hidden" aria-label="Queue">
+    <div class="q-top"><h3>Queue</h3><button class="icon-btn" data-qclose title="Close"><span data-icon="close"></span></button></div>
+    <div class="q-body"></div>
+  </aside>
+
   <div id="modal" class="modal hidden"></div>
   <div id="toast" class="toast hidden"></div>
-  <audio id="audio" preload="auto"></audio>
-  <script src="icons.js?v=19"></script>
-  <script src="app.js?v=19"></script>
+  <audio id="audio" preload="auto" playsinline></audio>
+  <script src="icons.js?v=21"></script>
+  <script src="app.js?v=21"></script>
   <script src="np.js?v=10"></script>
   <script src="explicit.js?v=10"></script>
   <script src="mixer.js?v=16"></script>
-  <script src="sync.js?v=20"></script>
 </body>
 </html>

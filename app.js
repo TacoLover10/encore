@@ -5,7 +5,7 @@
 //     official embedded player.
 //   - Audius: free full-length tracks from independent artists.
 //   - Your own audio files (stored in your browser with IndexedDB).
-// Everything you do (playlists, likes, listening history) is saved in your browser.
+// Everything you do (your queue, likes, listening history) is saved in your browser.
 (() => {
   "use strict";
 
@@ -32,17 +32,18 @@
   };
 
   const state = {
-    playlists: store.get("playlists", []),     // [{id, name, created, tracks:[track]}]
     liked: store.get("liked", []),             // [track]
     history: store.get("history", []),         // [{track, ts, secs}]
     recent: store.get("recent", []),           // last 5 searches [{q, at, track}]
-    queue: [], index: -1,
+    queue: [], index: -1,                      // tracks queued by you carry q: true
     shuffle: store.get("shuffle", false),
     repeat: store.get("repeat", "off"),        // off | all | one
     current: null, session: null,
     searchCache: {},
   };
   const save = (k) => store.set(k, state[k]);
+  // Playlists and code sync were removed; clear what they left behind
+  ["playlists", "syncCode", "syncKey", "syncAt", "syncPrint", "syncLast"].forEach((k) => localStorage.removeItem("encore:" + k));
 
   // IndexedDB for uploaded audio files
   const idb = (() => {
@@ -279,22 +280,33 @@
 
   async function playQueue(tracks, start = 0) {
     if (!tracks.length) return;
-    let q = tracks.slice();
+    let q = tracks.map((t) => { const s = slim(t); delete s.q; return s; });
     if (state.shuffle) {
       const first = q.splice(start, 1)[0];
       for (let i = q.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [q[i], q[j]] = [q[j], q[i]]; }
       q.unshift(first); start = 0;
     }
+    q.splice(start + 1, 0, ...queuedNext());   // songs you queued stay next in line
     state.queue = q; state.index = start;
     await loadAndPlay(true);
   }
 
+  let loadedId = null;   // the track actually loaded into a player (vs. just shown)
   async function loadAndPlay(userStarted = false) {
     const track = state.queue[state.index];
     if (!track) return;
     endSession();
     state.current = track;
+    saveQueue();
     updateNowPlaying();
+    // YouTube doesn't allow its songs to start while Encore is in the background;
+    // line it up so it starts as soon as you come back.
+    if (track.source === "yt" && document.hidden && !userStarted) {
+      loadedId = null; pendingResume = true;
+      if (yt.player?.stopVideo) yt.player.stopVideo();
+      audio.pause(); updatePlayBtn(); return;
+    }
+    loadedId = track.id;
     if (userStarted) document.dispatchEvent(new Event("encore:userplay"));
     try {
       if (track.source === "yt") {
@@ -318,6 +330,7 @@
       setTimeout(next, 800);
       return;
     }
+    if (track.source !== "yt") setMediaState();
     state.session = { track: slim(track), ts: Date.now(), secs: 0 };
   }
 
@@ -368,9 +381,84 @@
     loadAndPlay();
   }
   function prev() {
-    if (engine.time() > 3) { engine.seek(0); return; }
+    if (engine.time() > 3 && loadedId) { engine.seek(0); return; }
     if (state.index > 0) { state.index--; loadAndPlay(); }
   }
+
+  // ---------------- Queue ----------------
+  // state.queue holds what played before, the current song, then what's coming.
+  // Songs you add yourself are marked q:true and line up right after the current song.
+  const upcoming = () => state.queue.slice(state.index + 1);
+  const queuedNext = () => { const out = []; for (const t of upcoming()) { if (!t.q) break; out.push(t); } return out; };
+  function saveQueue() {
+    const from = Math.max(0, state.index - 20);   // keep a little history, not everything
+    store.set("queue", { q: state.queue.slice(from, from + 220), i: state.index - from });
+    renderQueue();
+  }
+  function addToQueue(t, playNext = false) {
+    const s = { ...slim(t), q: true };
+    if (!state.current) { state.queue = [s]; state.index = 0; loadAndPlay(true); return toast("Playing " + t.title); }
+    const at = state.index + 1 + (playNext ? 0 : queuedNext().length);
+    state.queue.splice(at, 0, s);
+    saveQueue();
+    toast(playNext ? `“${t.title}” plays next` : `Added “${t.title}” to the queue`);
+  }
+  function queueMenu(t) {
+    const m = modal(`<h3>${esc(t.title)}</h3><p class="sub" style="margin:-6px 0 12px">${esc(t.artist)}</p>
+      <button class="modal-opt" data-next>${icon("playNext")} Play next</button>
+      <button class="modal-opt" data-end>${icon("queueAdd")} Add to queue</button>
+      <div style="text-align:right;margin-top:12px"><button class="btn ghost" data-close>Cancel</button></div>`);
+    m.querySelector("[data-next]").onclick = () => { addToQueue(t, true); closeModal(); };
+    m.querySelector("[data-end]").onclick = () => { addToQueue(t); closeModal(); };
+  }
+  // Restore the queue from last time (shown in the player, starts when you press play)
+  (() => {
+    const saved = store.get("queue", null);
+    if (!saved || !saved.q || !saved.q[saved.i]) return;
+    state.queue = saved.q; state.index = saved.i; state.current = saved.q[saved.i];
+  })();
+
+  const qPanel = $("#queuePanel");
+  const qRow = (t, abs, opts = {}) => `<div class="q-row ${opts.now ? "now" : ""}" data-abs="${abs}">
+      ${t.art ? `<img src="${esc(t.art)}" alt="" loading="lazy" decoding="async">` : `<div class="q-ph">${icon("note")}</div>`}
+      <div class="q-main"><div class="q-title">${esc(t.title)}</div><div class="q-artist">${esc(t.artist)}</div></div>
+      ${opts.now ? "" : `<span class="q-btns">
+        <button class="icon-btn" data-up title="Move up">${icon("up")}</button>
+        <button class="icon-btn" data-down title="Move down">${icon("down")}</button>
+        <button class="icon-btn" data-rm title="Remove from queue">${icon("close")}</button></span>`}
+    </div>`;
+  function renderQueue() {
+    if (!qPanel || qPanel.classList.contains("hidden")) return;
+    const mine = queuedNext(), first = state.index + 1, rest = upcoming().slice(mine.length);
+    const restStart = first + mine.length;
+    qPanel.querySelector(".q-body").innerHTML = !state.current
+      ? `<div class="empty">Nothing playing. Tap ${icon("queueAdd")} on any song to start a queue.</div>`
+      : `<h4>Now playing</h4>${qRow(state.current, state.index, { now: true })}
+        <div class="q-sec"><h4>Next in your queue</h4>${mine.length ? `<button class="link-btn" id="qClear">Clear</button>` : ""}</div>
+        ${mine.length ? mine.map((t, i) => qRow(t, first + i)).join("") : `<p class="q-hint">Tap ${icon("queueAdd")} on any song to line it up here.</p>`}
+        ${rest.length ? `<div class="q-sec"><h4>Next up</h4><span class="q-count">${rest.length} song${rest.length > 1 ? "s" : ""}</span></div>
+          ${rest.slice(0, 60).map((t, i) => qRow(t, restStart + i)).join("")}` : ""}`;
+    qPanel.querySelectorAll(".q-row[data-abs]").forEach((row) => {
+      const abs = +row.dataset.abs;
+      if (abs === state.index) return;
+      row.querySelector(".q-main").onclick = () => { state.index = abs; loadAndPlay(true); };
+      row.querySelector("[data-rm]").onclick = () => { state.queue.splice(abs, 1); saveQueue(); };
+      const move = (to) => {
+        if (to <= state.index || to >= state.queue.length) return;
+        const a = state.queue[abs], b = state.queue[to];
+        if (!!a.q !== !!b.q) a.q = !!b.q;   // crossing into the other section takes on its label
+        state.queue[abs] = b; state.queue[to] = a; saveQueue();
+      };
+      row.querySelector("[data-up]").onclick = () => move(abs - 1);
+      row.querySelector("[data-down]").onclick = () => move(abs + 1);
+    });
+    const c = $("#qClear"); if (c) c.onclick = () => { const n = queuedNext().length; state.queue.splice(state.index + 1, n); saveQueue(); };
+  }
+  const openQueue = () => { qPanel.classList.toggle("hidden"); renderQueue(); };
+  $("#queueBtn").onclick = openQueue;
+  $("#npQueue").onclick = openQueue;
+  qPanel.querySelector("[data-qclose]").onclick = () => qPanel.classList.add("hidden");
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") qPanel.classList.add("hidden"); });
 
   // Keep the screen awake while music plays, so the phone's auto-sleep doesn't stop it.
   // (Locking the phone yourself still pauses YouTube songs; your own files keep playing.)
@@ -467,14 +555,40 @@
     }
     document.dispatchEvent(new Event("encore:track"));
   }
-  if ("mediaSession" in navigator) {
-    navigator.mediaSession.setActionHandler("nexttrack", () => next());
-    navigator.mediaSession.setActionHandler("previoustrack", prev);
-    navigator.mediaSession.setActionHandler("play", () => engine.play());
-    navigator.mediaSession.setActionHandler("pause", () => engine.pause());
+  // Lock screen & Control Center controls. Your files and indie (Audius) songs keep playing
+  // when you leave Encore; YouTube's rules don't allow its songs to play in the background,
+  // so those pause and pick up again when you come back.
+  let pendingResume = false;
+  function setMediaState() {
+    if (!("mediaSession" in navigator)) return;
+    try {
+      navigator.mediaSession.playbackState = engine.isPaused() ? "paused" : "playing";
+      const d = engine.duration();
+      if (mode === "audio" && d && isFinite(d)) navigator.mediaSession.setPositionState({ duration: d, position: Math.min(engine.time(), d), playbackRate: 1 });
+    } catch {}
   }
+  const bgBlocked = () => mode === "yt" && document.hidden;
+  if ("mediaSession" in navigator) {
+    const h = (a, fn) => { try { navigator.mediaSession.setActionHandler(a, fn); } catch {} };
+    h("nexttrack", () => next());
+    h("previoustrack", prev);
+    h("play", () => { if (bgBlocked()) return; loadedId === state.current?.id ? engine.play() : loadAndPlay(true); });
+    h("pause", () => engine.pause());
+    h("seekto", (e) => { if (mode === "audio" && e.seekTime != null) { engine.seek(e.seekTime); setMediaState(); } });
+  }
+  ["play", "pause", "loadedmetadata"].forEach((ev) => audio.addEventListener(ev, setMediaState));
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      // Remember a YouTube song that was playing so it continues when you return
+      if (mode === "yt" && loadedId && !engine.isPaused()) pendingResume = true;
+    } else if (pendingResume) {
+      pendingResume = false;
+      if (state.current && loadedId !== state.current.id) loadAndPlay(true);
+      else if (mode === "yt") setTimeout(() => engine.play(), 150);
+    }
+  });
 
-  $("#playBtn").onclick = () => { if (!engine.hasTrack()) return; engine.isPaused() ? engine.play() : engine.pause(); setTimeout(updatePlayBtn, 200); };
+  $("#playBtn").onclick = () => { if (!engine.hasTrack()) return; if (loadedId !== state.current.id) return loadAndPlay(true); engine.isPaused() ? engine.play() : engine.pause(); setTimeout(updatePlayBtn, 200); };
   $("#nextBtn").onclick = () => next();
   $("#prevBtn").onclick = prev;
   $("#seek").oninput = (e) => { const d = engine.duration(); if (d) engine.seek((e.target.value / 1000) * d); };
@@ -506,30 +620,12 @@
     save("liked"); updateNowPlaying(); renderSidebar();
     document.querySelectorAll(`[data-like="${CSS.escape(t.id)}"]`).forEach((b) => (b.innerHTML = icon(isLiked(t) ? "heartFill" : "heart")));
   }
-  function createPlaylist(name) {
-    const pl = { id: uid(), name: name || `My Playlist #${state.playlists.length + 1}`, created: Date.now(), tracks: [] };
-    state.playlists.push(pl); save("playlists"); renderSidebar();
-    return pl;
-  }
-  function addToPlaylist(pl, t) {
-    if (pl.tracks.some((x) => x.id === t.id)) return toast("Already in " + pl.name);
-    pl.tracks.push(slim(t)); save("playlists"); renderSidebar(); toast("Added to " + pl.name);
-  }
-
   function renderSidebar() {
     const cur = location.hash;
     $("#playlistList").innerHTML =
       `<a class="playlist-item ${cur === "#liked" ? "active" : ""}" href="#liked">${icon("heartFill")} Liked Songs · ${state.liked.length}</a>` +
-      `<a class="playlist-item ${cur === "#files" ? "active" : ""}" href="#files">${icon("folder")} My Files</a>` +
-      state.playlists.map((p) => `<a class="playlist-item ${cur === "#playlist/" + p.id ? "active" : ""}" href="#playlist/${p.id}">${esc(p.name)}</a>`).join("");
+      `<a class="playlist-item ${cur === "#files" ? "active" : ""}" href="#files">${icon("folder")} My Files</a>`;
   }
-  $("#newPlaylistBtn").onclick = () => {
-    const name = prompt("Playlist name:", `My Playlist #${state.playlists.length + 1}`);
-    if (name === null) return;
-    const pl = createPlaylist(name.trim());
-    location.hash = "#playlist/" + pl.id;
-  };
-
   // ---------------- Modal / toast ----------------
   function modal(html) {
     const m = $("#modal");
@@ -544,19 +640,6 @@
     const t = $("#toast"); t.textContent = msg; t.classList.remove("hidden");
     clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hidden"), 2400);
   }
-  function addToPlaylistMenu(t) {
-    const m = modal(`<h3>Add “${esc(t.title)}” to…</h3>
-      <button class="modal-opt" data-new>${icon("plus")} New playlist</button>
-      ${state.playlists.map((p) => `<button class="modal-opt" data-pl="${p.id}">${esc(p.name)} <span class="t-src">· ${p.tracks.length} songs</span></button>`).join("")}
-      <div style="text-align:right;margin-top:12px"><button class="btn ghost" data-close>Cancel</button></div>`);
-    m.querySelectorAll("[data-pl]").forEach((b) => (b.onclick = () => { addToPlaylist(state.playlists.find((p) => p.id === b.dataset.pl), t); closeModal(); }));
-    m.querySelector("[data-new]").onclick = () => {
-      const name = prompt("Playlist name:", `My Playlist #${state.playlists.length + 1}`);
-      if (name === null) return;
-      addToPlaylist(createPlaylist(name.trim()), t); closeModal();
-    };
-  }
-
   // ---------------- Track list component ----------------
   // ctx: { removable: fn(track) } optional
   function trackTable(tracks, ctx = {}) {
@@ -569,7 +652,7 @@
         <td class="t-src" style="text-align:right">${t.duration ? fmt(t.duration) : ""}</td>
         <td class="t-actions">
           <button data-like="${esc(t.id)}" title="Like">${icon(isLiked(t) ? "heartFill" : "heart")}</button>
-          <button data-add title="Add to playlist">${icon("plus")}</button>
+          <button data-add title="Add to queue">${icon("queueAdd")}</button>
           ${ctx.removable ? `<button data-remove title="Remove">${icon("close")}</button>` : ""}
         </td></tr>`).join("")}
       </tbody></table>`;
@@ -581,7 +664,7 @@
       tr.querySelector(".t-main").onclick = () => playQueue(tracks, i);
       tr.querySelector(".t-num").onclick = () => playQueue(tracks, i);
       tr.querySelector("[data-like]").onclick = (e) => { e.stopPropagation(); toggleLike(t); };
-      tr.querySelector("[data-add]").onclick = (e) => { e.stopPropagation(); addToPlaylistMenu(t); };
+      tr.querySelector("[data-add]").onclick = (e) => { e.stopPropagation(); queueMenu(t); };
       const rm = tr.querySelector("[data-remove]");
       if (rm) rm.onclick = (e) => { e.stopPropagation(); ctx.removable(t); };
     });
@@ -590,9 +673,13 @@
     return `<div class="${cls}">${tracks.map((t, i) => `<div class="card" data-i="${i}">
       ${t.art ? `<img src="${esc(t.art)}" loading="lazy" decoding="async" alt="">` : `<div class="ph">${icon("note")}</div>`}
       <button class="card-play" title="Play">${icon("play")}</button>
+      <button class="card-add" title="Add to queue">${icon("queueAdd")}</button>
       <div class="card-title">${esc(t.title)}</div><div class="card-sub">${esc(t.artist)}</div></div>`).join("")}</div>`;
   }
-  const bindCards = (root, tracks) => root.querySelectorAll(".card[data-i]").forEach((c) => (c.onclick = () => playQueue(tracks, +c.dataset.i)));
+  const bindCards = (root, tracks) => root.querySelectorAll(".card[data-i]").forEach((c) => {
+    c.onclick = () => playQueue(tracks, +c.dataset.i);
+    c.querySelector(".card-add").onclick = (e) => { e.stopPropagation(); queueMenu(tracks[+c.dataset.i]); };
+  });
 
   // ---------------- Views ----------------
   const main = $("#main");
@@ -717,7 +804,7 @@
           <div class="r-title">${esc(r.track ? r.track.title : r.q)}</div>
           <div class="r-q">${r.track ? `${esc(r.track.artist)}, from your search “${esc(r.q)}”` : "No song played from this search yet"}</div>
         </div>
-        ${r.track ? `<button class="icon-btn" data-play title="Play">${icon("play")}</button>` : ""}
+        ${r.track ? `<button class="icon-btn" data-play title="Play">${icon("play")}</button><button class="icon-btn" data-queue title="Add to queue">${icon("queueAdd")}</button>` : ""}
         <button class="icon-btn" data-again title="Search “${esc(r.q)}” again">${icon("search")}</button>
         <button class="icon-btn" data-del title="Remove">${icon("close")}</button>
       </div>`).join("")}</div>`;
@@ -726,6 +813,7 @@
       const play = () => r.track ? playQueue([r.track], 0) : searchAgain(r.q);
       el.querySelector(".r-main").onclick = play;
       const p = el.querySelector("[data-play]"); if (p) p.onclick = play;
+      const qb = el.querySelector("[data-queue]"); if (qb) qb.onclick = () => queueMenu(r.track);
       el.querySelector("[data-again]").onclick = () => searchAgain(r.q);
       el.querySelector("[data-del]").onclick = () => { state.recent = state.recent.filter((x) => x !== r); save("recent"); renderRecent(box, searchAgain); };
     });
@@ -734,36 +822,11 @@
 
   function viewLibrary() {
     main.innerHTML = `${mobileNav}<h1>Your Library</h1>
-      <div class="row" style="margin-bottom:20px"><button class="btn" id="libNew">${icon("plus")} New playlist</button><a class="btn ghost" href="#files">${icon("upload")} Upload your music</a></div>
-      <h2 style="margin-top:8px">Sync with a code</h2>
-      <div id="syncBox"></div>
-      <h2>Your collection</h2>
+      <div class="row" style="margin-bottom:20px"><a class="btn ghost" href="#files">${icon("upload")} Upload your music</a></div>
       <div class="grid">
         <a class="card" href="#liked"><div class="ph">${icon("heartFill")}</div><div class="card-title">Liked Songs</div><div class="card-sub">${state.liked.length} songs</div></a>
         <a class="card" href="#files"><div class="ph">${icon("folder")}</div><div class="card-title">My Files</div><div class="card-sub">Your uploads</div></a>
-        ${state.playlists.map((p) => `<a class="card" href="#playlist/${p.id}">
-          ${p.tracks[0]?.art ? `<img src="${esc(p.tracks[0].art)}" alt="">` : `<div class="ph">${icon("note")}</div>`}
-          <div class="card-title">${esc(p.name)}</div><div class="card-sub">${p.tracks.length} songs</div></a>`).join("")}
-      </div>
-      <h2>Backup</h2>
-      <p class="sub" style="margin:0 0 12px">Your playlists and stats live in this browser. Export them to move to another device.</p>
-      <div class="row"><button class="btn ghost" id="exportBtn">${icon("download")} Export data</button><label class="btn ghost">${icon("upload")} Import data<input type="file" id="importIn" accept=".json" hidden></label></div>`;
-    $("#libNew").onclick = () => $("#newPlaylistBtn").click();
-    $("#exportBtn").onclick = () => {
-      const data = { app: "encore", version: 1, playlists: state.playlists, liked: state.liked, history: state.history };
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
-      a.download = `encore-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
-    };
-    $("#importIn").onchange = async (e) => {
-      try {
-        const d = JSON.parse(await e.target.files[0].text());
-        if (d.app !== "encore") throw 0;
-        if (!confirm("Replace your current playlists, likes and stats with this backup?")) return;
-        ["playlists", "liked", "history"].forEach((k) => { state[k] = d[k] || []; save(k); });
-        renderSidebar(); route(); toast("Backup imported");
-      } catch { toast("That isn't an Encore backup file"); }
-    };
+      </div>`;
   }
 
   function playlistHeader({ kind, name, count, secs, cover, icon: iconHtml, actions = "" }) {
@@ -771,30 +834,23 @@
       <div class="pl-cover">${cover ? `<img src="${esc(cover)}" alt="">` : iconHtml}</div>
       <div><div class="pl-kind">${kind}</div><div class="pl-name">${esc(name)}</div>
       <div class="t-src">${count} songs${secs ? " · " + fmt(secs) : ""}</div>
-      <div class="row" style="margin-top:16px"><button class="btn" id="playAll">${icon("play")} Play</button>${actions}</div></div></div>`;
+      <div class="row" style="margin-top:16px"><button class="btn" id="playAll">${icon("play")} Play</button><button class="btn ghost" id="queueAll">${icon("queueAdd")} Add all to queue</button>${actions}</div></div></div>`;
   }
 
   function viewLiked() {
     const tracks = state.liked;
-    main.innerHTML = mobileNav + playlistHeader({ kind: "Playlist", name: "Liked Songs", count: tracks.length, secs: tracks.reduce((a, t) => a + (t.duration || 0), 0), icon: icon("heartFill") }) + `<div id="list"></div>`;
+    main.innerHTML = mobileNav + playlistHeader({ kind: "Collection", name: "Liked Songs", count: tracks.length, secs: tracks.reduce((a, t) => a + (t.duration || 0), 0), icon: icon("heartFill") }) + `<div id="list"></div>`;
     $("#list").innerHTML = trackTable(tracks, { removable: 1, empty: "Tap the heart on any song to save it here." });
     bindTracks($("#list"), tracks, { removable: (t) => { toggleLike(t); viewLiked(); } });
     $("#playAll").onclick = () => playQueue(tracks, 0);
+    $("#queueAll").onclick = () => queueAll(tracks);
   }
-
-  function viewPlaylist(id) {
-    const pl = state.playlists.find((p) => p.id === id);
-    if (!pl) { location.hash = "#library"; return; }
-    main.innerHTML = mobileNav + playlistHeader({
-      kind: "Playlist", name: pl.name, count: pl.tracks.length, secs: pl.tracks.reduce((a, t) => a + (t.duration || 0), 0),
-      cover: pl.tracks[0]?.art, icon: icon("note"),
-      actions: `<button class="btn ghost" id="renamePl">Rename</button><button class="btn ghost" id="deletePl">Delete</button>`,
-    }) + `<div id="list"></div>`;
-    $("#list").innerHTML = trackTable(pl.tracks, { removable: 1, empty: "Find songs in Search and press + to add them here." });
-    bindTracks($("#list"), pl.tracks, { removable: (t) => { pl.tracks = pl.tracks.filter((x) => x.id !== t.id); save("playlists"); renderSidebar(); viewPlaylist(id); } });
-    $("#playAll").onclick = () => playQueue(pl.tracks, 0);
-    $("#renamePl").onclick = () => { const n = prompt("Rename playlist:", pl.name); if (n && n.trim()) { pl.name = n.trim(); save("playlists"); renderSidebar(); viewPlaylist(id); } };
-    $("#deletePl").onclick = () => { if (confirm(`Delete “${pl.name}”?`)) { state.playlists = state.playlists.filter((p) => p.id !== id); save("playlists"); renderSidebar(); location.hash = "#library"; } };
+  function queueAll(tracks) {
+    if (!tracks.length) return;
+    if (!state.current) return playQueue(tracks, 0);
+    const at = state.index + 1 + queuedNext().length;
+    state.queue.splice(at, 0, ...tracks.map((t) => ({ ...slim(t), q: true })));
+    saveQueue(); toast(`Added ${tracks.length} song${tracks.length > 1 ? "s" : ""} to the queue`);
   }
 
   async function viewFiles() {
@@ -906,31 +962,27 @@
           <div class="val">${Math.round(x.secs / 60)} min</div></div>`).join("")}</div>
       </div>
       ${topGenres.length ? `<h2>Top genres</h2><div class="row">${topGenres.map(([g, s]) => `<span class="tab">${esc(g)} · ${Math.round(s / 60)} min</span>`).join("")}</div>` : ""}
-      <div class="row" style="margin-top:28px"><button class="btn" id="mkTop">Save top songs as a playlist</button></div>`}`;
+      <div class="row" style="margin-top:28px"><button class="btn" id="mkTop">${icon("play")} Play top songs</button><button class="btn ghost" id="qTop">${icon("queueAdd")} Add top songs to queue</button></div>`}`;
 
     $("#monthSel").onchange = (e) => { statsMonth = e.target.value; viewStats(); };
     const topList = topTracks.map((x) => x.track);
     main.querySelectorAll("[data-ti]").forEach((el) => (el.onclick = () => playQueue(topList, +el.dataset.ti)));
     const mk = $("#mkTop");
-    if (mk) mk.onclick = () => {
-      const pl = createPlaylist(`Top Songs · ${monthLabel(statsMonth)}`);
-      pl.tracks = topList.map(slim); save("playlists"); renderSidebar();
-      location.hash = "#playlist/" + pl.id;
-    };
+    if (mk) { mk.onclick = () => playQueue(topList, 0); $("#qTop").onclick = () => queueAll(topList); }
   }
 
   // ---------------- Router ----------------
   function route() {
     const h = location.hash.slice(1) || "home";
-    const [view, arg] = h.split("/");
+    const [view] = h.split("/");
     document.querySelectorAll(".nav-link").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
     renderSidebar();
     main.scrollTop = 0;
-    ({ home: viewHome, search: viewSearch, library: viewLibrary, sync: viewLibrary, liked: viewLiked, files: viewFiles, stats: viewStats,
-       playlist: () => viewPlaylist(arg) }[view] || viewHome)();
+    ({ home: viewHome, search: viewSearch, library: viewLibrary, liked: viewLiked, files: viewFiles, stats: viewStats }[view] || viewHome)();
   }
   window.addEventListener("hashchange", route);
   route();
+  if (state.current) updateNowPlaying();
 
   // iPhone: no pinch or double-tap zooming
   ["gesturestart", "gesturechange", "gestureend"].forEach((ev) => document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
@@ -954,5 +1006,5 @@
   setTimeout(() => loadYT(), 1500);
 
   // Shared with np.js (Now Playing screen + lyrics)
-  window.Encore = { state, engine, esc, fmt, store, toast, timeoutFetch, toggleLike, isLiked, switchVersion, search: searchAll, refresh: () => { renderSidebar(); route(); }, getMode: () => mode };
+  window.Encore = { state, engine, esc, fmt, store, toast, timeoutFetch, toggleLike, isLiked, switchVersion, addToQueue, queueMenu, search: searchAll, refresh: () => { renderSidebar(); route(); }, getMode: () => mode };
 })();

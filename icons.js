@@ -27,7 +27,10 @@
     download: '<path d="M12 4v12M7 11l5 5 5-5M4 20h16"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     mixer: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
-    cloud: '<path d="M7 18.5h10.5a4 4 0 0 0 .4-8 6 6 0 0 0-11.6-1.4A4.6 4.6 0 0 0 7 18.5z"/>',
+    queue: '<path d="M3 6h13M3 12h13M3 18h8"/><path fill="currentColor" stroke="none" d="M16 14.5v7l5.5-3.5z"/>',
+    queueAdd: '<path d="M3 6h12M3 12h12M3 18h8"/><path d="M18 14v8M14 18h8"/>',
+    playNext: '<path fill="currentColor" stroke="none" d="M3 4.5v7l5.5-3.5z"/><path d="M12 6h9M3 15h18M3 20h18"/>',
+    up: '<path d="M6 15l6-6 6 6"/>',
     swap: '<path d="M7 4L3 8l4 4"/><path d="M3 8h14"/><path d="M17 12l4 4-4 4"/><path d="M21 16H7"/>',
   };
   window.icon = (name) =>
