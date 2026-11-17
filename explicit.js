@@ -8,9 +8,9 @@
   if (!E) return;
   const { store } = E;
 
-  const cache = store.get("explicit", {});      // key -> 1 (explicit) | 0
+  const cache = store.get("explicit2", {});      // key -> 1 (explicit) | 0
   let dirty = false;
-  setInterval(() => { if (dirty) { dirty = false; store.set("explicit", cache); } }, 3000);
+  setInterval(() => { if (dirty) { dirty = false; store.set("explicit2", cache); } }, 3000);
 
   const norm = (s) => String(s || "").toLowerCase().replace(/[’']/g, "")
     .replace(/\s*[\(\[][^\)\]]*[\)\]]/g, " ").replace(/\b(feat|ft)\.?\s.*$/, "")
@@ -69,7 +69,7 @@
       const ra = norm(r.artist && r.artist.name), rt = norm(r.title);
       return ra && na && (na.includes(ra) || ra.includes(na)) && (rt === nt || rt.startsWith(nt + " ") || nt.startsWith(rt + " "));
     });
-    if (!same.length) return 0;
+    if (!same.length) return lyricsCheck(nt, a, dur);
     const isExp = (r) => r.explicit_lyrics || r.explicit_content_lyrics === 1;
     const exp = same.filter(isExp);
     if (!exp.length) return 0;
@@ -78,6 +78,17 @@
     // Both versions exist: pick the one whose length matches this upload
     const best = (arr) => Math.min(...arr.map((r) => Math.abs((r.duration || 0) - dur)));
     return best(exp) <= best(clean) ? 1 : 0;
+  }
+
+  // Fallback when Deezer doesn't carry the song: check its lyrics (from LRCLIB) for explicit words.
+  const SWEAR = /\b(fuck|fuckin|fucking|motherfucker|shit|bitch|bitches|pussy|cunt|nigga|niggas)\b/i;
+  async function lyricsCheck(title, artist, dur) {
+    const r = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}&artist_name=${encodeURIComponent(artist)}`);
+    if (!r.ok) return null;
+    const list = (await r.json()).filter((x) => x.plainLyrics || x.syncedLyrics);
+    if (!list.length) return 0;
+    if (dur) list.sort((x, y) => Math.abs((x.duration || 0) - dur) - Math.abs((y.duration || 0) - dur));
+    return SWEAR.test(list[0].plainLyrics || list[0].syncedLyrics) ? 1 : 0;
   }
 
   const badge = () => {
