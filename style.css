@@ -444,3 +444,5 @@ input[type="password"]:focus { border-color: var(--accent); background: var(--pa
 .ver-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ver-text .t-src { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ver-opt.cur { background: var(--hover); }
+.toast { display: flex; align-items: center; gap: 14px; }
+.toast-btn { background: none; border: 0; color: var(--accent); font: inherit; font-weight: 700; padding: 2px 0; cursor: pointer; white-space: nowrap; }

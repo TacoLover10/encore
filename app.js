@@ -288,12 +288,18 @@
     q.splice(start + 1, 0, ...queuedNext());   // songs you queued stay next in line
     // Keep what you were listening to behind the new song, so Previous takes you back
     const hist = state.current && loadedId ? state.queue.slice(Math.max(0, state.index - 49), state.index + 1) : [];
+    const was = hist.length && engine.time() > 2 ? { track: state.current, at: engine.time() } : null;
     state.queue = [...hist, ...q]; state.index = hist.length + start;
     await loadAndPlay(true);
+    // Tapped a song by accident? One tap takes you back to where you were.
+    if (was && was.track.id !== state.current.id) toast(`Playing “${state.current.title}”`, { label: "Go back", run: () => {
+      const i = state.queue.lastIndexOf(was.track);
+      if (i >= 0) { state.index = i; loadAndPlay(true, was.at); }
+    } });
   }
 
   let loadedId = null;   // the track actually loaded into a player (vs. just shown)
-  async function loadAndPlay(userStarted = false) {
+  async function loadAndPlay(userStarted = false, startAt = 0) {
     const track = state.queue[state.index];
     if (!track) return;
     endSession();
@@ -317,12 +323,13 @@
         document.dispatchEvent(new Event("encore:mode"));
         const p = await loadYT();
         p.setVolume(Math.round(volume * 100));
-        p.loadVideoById(playSid(track));
+        p.loadVideoById(playSid(track), startAt);
       } else {
         if (yt.player) yt.player.stopVideo();
         mode = "audio";
         document.dispatchEvent(new Event("encore:mode"));
         audio.src = await streamUrl(track);
+        if (startAt) audio.addEventListener("loadedmetadata", () => { audio.currentTime = startAt; }, { once: true });
         await audio.play();
       }
     } catch (e) {
@@ -344,7 +351,7 @@
     const [a, b] = await Promise.allSettled([ytSearch(`${t.artist} ${t.title}`, "songs"), ytSearch(`${t.artist} ${t.title} explicit`, "videos")]);
     const core = key.split("|")[1] || "";
     const okDur = (c) => !t.duration || !c.duration || Math.abs(c.duration - t.duration) <= 20;
-    const bad = /\b(radio edit|instrumental|karaoke|cover|sped|slowed|nightcore|reaction|8d)\b/i;
+    const bad = /\b(radio edit|instrumental|karaoke|cover|sped|slowed|nightcore|reaction|8d|tribute|made famous|in the style of|originally performed|as performed)\b/i;
     const sameArtist = (c) => songKey(c).startsWith(t.artist.toLowerCase());
     const seen = new Set([t.sid]);
     const list = [...(a.value || []), ...(b.value || [])].filter((c) => {
@@ -657,9 +664,14 @@
   }
   const closeModal = () => $("#modal").classList.add("hidden");
   let toastT;
-  function toast(msg) {
+  function toast(msg, action) {
     const t = $("#toast"); t.textContent = msg; t.classList.remove("hidden");
-    clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hidden"), 2400);
+    if (action) {
+      const b = document.createElement("button"); b.className = "toast-btn"; b.textContent = action.label;
+      b.onclick = () => { t.classList.add("hidden"); action.run(); };
+      t.appendChild(b);
+    }
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hidden"), action ? 6000 : 2400);
   }
   // ---------------- Track list component ----------------
   // ctx: { removable: fn(track) } optional
