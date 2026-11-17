@@ -578,7 +578,7 @@
 
   // ---------------- Views ----------------
   const main = $("#main");
-  const mobileNav = `<div class="mobile-nav"><a class="tab" href="#home">Home</a><a class="tab" href="#search">Search</a><a class="tab" href="#library">Library</a><a class="tab" href="#stats">Stats</a></div>`;
+  const mobileNav = `<div class="mobile-nav"><a class="tab" href="#home">Home</a><a class="tab" href="#search">Search</a><a class="tab" href="#library">Library</a><a class="tab" href="#stats">Stats</a><a class="tab" href="#mix">Mixer</a></div>`;
   const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; };
   const YEAR = new Date().getFullYear();
   const SHELVES = [
@@ -914,5 +914,5 @@
   setTimeout(() => loadYT(), 1500);
 
   // Shared with np.js (Now Playing screen + lyrics)
-  window.Encore = { state, engine, esc, fmt, store, toast, timeoutFetch, toggleLike, isLiked, switchVersion, getMode: () => mode };
+  window.Encore = { state, engine, esc, fmt, store, toast, timeoutFetch, toggleLike, isLiked, switchVersion, search: searchAll, getMode: () => mode };
 })();
