@@ -299,3 +299,34 @@ tr.track:hover .t-actions button { opacity: 1; }
   .np-song-title { font-size: 22px; }
   .t-actions button { opacity: 1; }
 }
+
+/* ---------- Animated covers (Now Playing) ---------- */
+.np-cover { position: relative; display: grid; place-items: center; }
+.np-cover:has(> .np-big-art.hidden) { display: none; }
+.np-cover .np-big-art { position: relative; z-index: 1; will-change: transform; }
+.np-cover-glow { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 14px; z-index: 0;
+  filter: blur(42px) saturate(1.7); transform: scale(1.06); opacity: 0; pointer-events: none; }
+.np-cover-sheen { position: absolute; inset: 0; z-index: 2; border-radius: 14px; pointer-events: none; opacity: 0;
+  background: linear-gradient(115deg, transparent 38%, #ffffff30 50%, transparent 62%); background-size: 260% 100%; background-position: 130% 0; }
+
+/* pulse: the cover beats in time */
+.np-cover.m-pulse .np-big-art { animation: coverBeat var(--beat, .5s) cubic-bezier(.2,.7,.3,1) infinite; }
+.np-cover.m-pulse .np-cover-glow { animation: glowBeat var(--beat, .5s) ease-out infinite; }
+@keyframes coverBeat { 0% { transform: scale(1.03); } 40%, 100% { transform: scale(1); } }
+@keyframes glowBeat { 0% { opacity: .8; transform: scale(1.12); } 100% { opacity: .25; transform: scale(1.04); } }
+
+/* drift: slow float with a light sweep */
+.np-cover.m-drift .np-big-art { animation: coverFloat 14s ease-in-out infinite alternate; }
+.np-cover.m-drift .np-cover-glow { opacity: .45; animation: coverFloat 14s ease-in-out infinite alternate; }
+.np-cover.m-drift .np-cover-sheen { animation: sheen 9s ease-in-out infinite; }
+@keyframes coverFloat { from { transform: translateY(-6px) rotate(-.6deg) scale(1.01); } to { transform: translateY(6px) rotate(.6deg) scale(1.03); } }
+@keyframes sheen { 0%, 55% { opacity: 0; background-position: 130% 0; } 65% { opacity: 1; } 100% { opacity: 0; background-position: -30% 0; } }
+
+/* breathe: a soft glow for quiet songs */
+.np-cover.m-breathe .np-big-art { animation: coverBreathe 7s ease-in-out infinite; }
+.np-cover.m-breathe .np-cover-glow { animation: glowBreathe 7s ease-in-out infinite; }
+@keyframes coverBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+@keyframes glowBreathe { 0%, 100% { opacity: .15; } 50% { opacity: .6; } }
+
+.np-cover.paused .np-big-art, .np-cover.paused .np-cover-glow, .np-cover.paused .np-cover-sheen { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .np-cover-glow { opacity: .35 !important; } }
