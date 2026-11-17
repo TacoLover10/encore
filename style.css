@@ -470,3 +470,4 @@ input[type="password"]:focus { border-color: var(--accent); background: var(--pa
   .player #queueBtn { grid-area: 3 / 7; }
   .player .volume input, .player .volume > span { display: none; }
 }
+@media (max-width: 800px) { .player #shuffleBtn, .player #repeatBtn { display: inline-grid; } }

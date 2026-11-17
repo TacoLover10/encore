@@ -337,6 +337,7 @@
     loadedId = track.id;
     if (userStarted) document.dispatchEvent(new Event("encore:userplay"));
     try {
+      if (track.source === "yt" && !track.sid && !versions[songKey(track)]) await resolveYt(track);
       if (track.source === "yt") {
         audio.pause();
         mode = "yt";
@@ -741,32 +742,59 @@
   const mobileNav = `<div class="mobile-nav"><a class="tab" href="#home">Home</a><a class="tab" href="#search">Search</a><a class="tab" href="#library">Library</a><a class="tab" href="#stats">Stats</a><a class="tab" href="#mix">Mixer</a></div>`;
   const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; };
   const YEAR = new Date().getFullYear();
+  // Home shelves come from Apple's US charts (what people in the US are playing right now);
+  // each song is matched to YouTube when you play it. [title, chart genre id, YouTube search]
   const SHELVES = [
-    ["Today's top hits", `top hits ${YEAR}`],
-    ["Hip-hop & rap", `hip hop hits ${YEAR}`],
-    ["Pop", `pop hits ${YEAR}`],
-    ["R&B", `r&b hits ${YEAR}`],
-    ["Country", `country hits ${YEAR}`],
-    ["Rock classics", "classic rock hits"],
-    ["Throwbacks", "2000s hits"],
-    ["Latin", `latin hits ${YEAR}`],
+    ["Today's top hits", 0, `top hits ${YEAR}`],
+    ["Hip-hop & rap", 18, `hip hop hits ${YEAR}`],
+    ["Pop", 14, `pop hits ${YEAR}`],
+    ["R&B", 15, `r&b hits ${YEAR}`],
+    ["Country", 6, `country hits ${YEAR}`],
+    ["Dance & electronic", 17, `dance hits ${YEAR}`],
+    ["Rock classics", null, "classic rock hits"],
+    ["Throwbacks", null, "2000s hits"],
+    ["Latin", 12, `latin hits ${YEAR}`],
   ];
+  async function usChart(genre) {
+    const r = await timeoutFetch(`https://itunes.apple.com/us/rss/topsongs/limit=25${genre ? "/genre=" + genre : ""}/explicit=true/json`, 8000);
+    if (!r.ok) throw new Error(r.status);
+    const entries = (await r.json()).feed?.entry || [];
+    return entries.map((e) => ({
+      id: "chart:" + e.id.attributes["im:id"], source: "yt", sid: null,
+      title: e["im:name"].label, artist: e["im:artist"].label,
+      art: (e["im:image"]?.slice(-1)[0]?.label || "").replace(/\d+x\d+bb\./, "400x400bb."),
+      duration: 0, genre: e.category?.attributes?.label || "",
+    }));
+  }
+  // Find the YouTube upload for a chart song the first time it plays
+  async function resolveYt(t) {
+    const found = await ytSearch(`${t.artist} ${t.title}`, "songs");
+    const core = songKey(t).split("|")[1] || "";
+    const pick = found.find((c) => (songKey(c).split("|")[1] || "").includes(core)) || found[0];
+    if (!pick) throw new Error("Not found on YouTube");
+    t.sid = pick.sid; t.id = pick.id; if (!t.duration) t.duration = pick.duration;
+  }
 
   // Skip hour-long compilations and "Top 100" mixes on Home
   const isSingleSong = (t) => (!t.duration || t.duration < 600) && !/\b(top \d+|mix|playlist|compilation|full album|non.?stop|hours?)\b/i.test(t.title);
 
   // Cache home shelves for 6 hours so Home loads instantly
-  async function shelf(query) {
-    const cache = store.get("shelves3", {});
-    const hit = cache[query];
+  async function shelf([, genre, query]) {
+    const cache = store.get("shelves4", {});
+    const ck = genre === null ? query : "chart:" + genre;
+    const hit = cache[ck];
     if (hit && Date.now() - hit.at < 6 * 3600e3 && hit.tracks.length) return hit.tracks;
     // Home leans English; songs in other scripts are left off unless the shelf would run short
-    const all = englishFirst((await ytSearch(query, "songs")).filter(isSingleSong));
-    const eng = all.filter((t) => langScore(t) < 2);
-    const tracks = (eng.length >= 8 ? eng : all).slice(0, 14);
-    cache[query] = { at: Date.now(), tracks };
-    localStorage.removeItem("encore:shelves"); localStorage.removeItem("encore:shelves2");
-    store.set("shelves3", cache);
+    let tracks = [];
+    if (genre !== null) try { tracks = (await usChart(genre)).slice(0, 16); } catch {}
+    if (!tracks.length) {
+      const all = englishFirst((await ytSearch(query, "songs")).filter(isSingleSong));
+      const eng = all.filter((t) => langScore(t) < 2);
+      tracks = (eng.length >= 8 ? eng : all).slice(0, 14);
+    }
+    cache[ck] = { at: Date.now(), tracks };
+    ["shelves", "shelves2", "shelves3"].forEach((k) => localStorage.removeItem("encore:" + k));
+    store.set("shelves4", cache);
     return tracks;
   }
 
@@ -781,10 +809,10 @@
       ${SHELVES.map(([title], i) => `<h2>${esc(title)}</h2><div data-shelf="${i}"><div class="empty">Loading…</div></div>`).join("")}
       <h2>Trending indie (Audius)</h2><div id="indie"><div class="empty">Loading…</div></div>`;
     if (recent.length) { $("#recent").innerHTML = cardGrid(recent, "shelf"); bindCards($("#recent"), recent); }
-    SHELVES.forEach(async ([, q], i) => {
+    SHELVES.forEach(async (sh, i) => {
       const el = main.querySelector(`[data-shelf="${i}"]`);
       try {
-        const tracks = await shelf(q);
+        const tracks = await shelf(sh);
         if (!el.isConnected) return;
         el.innerHTML = cardGrid(tracks, "shelf"); bindCards(el, tracks);
       } catch { if (el.isConnected) el.innerHTML = `<div class="empty">Couldn't load right now — the free search mirrors may be busy. Try again in a minute.</div>`; }
