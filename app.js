@@ -744,7 +744,9 @@
       </div>
       <h2>Backup</h2>
       <p class="sub" style="margin:0 0 12px">Your playlists and stats live in this browser. Export them to move to another device.</p>
-      <div class="row"><button class="btn ghost" id="exportBtn">${icon("download")} Export data</button><label class="btn ghost">${icon("upload")} Import data<input type="file" id="importIn" accept=".json" hidden></label></div>`;
+      <div class="row"><button class="btn ghost" id="exportBtn">${icon("download")} Export data</button><label class="btn ghost">${icon("upload")} Import data<input type="file" id="importIn" accept=".json" hidden></label></div>
+      <h2>Sync with a code</h2>
+      <div id="syncBox"></div>`;
     $("#libNew").onclick = () => $("#newPlaylistBtn").click();
     $("#exportBtn").onclick = () => {
       const data = { app: "encore", version: 1, playlists: state.playlists, liked: state.liked, history: state.history };
@@ -932,5 +934,5 @@
   setTimeout(() => loadYT(), 1500);
 
   // Shared with np.js (Now Playing screen + lyrics)
-  window.Encore = { state, engine, esc, fmt, store, toast, timeoutFetch, toggleLike, isLiked, switchVersion, search: searchAll, getMode: () => mode };
+  window.Encore = { state, engine, esc, fmt, store, toast, timeoutFetch, toggleLike, isLiked, switchVersion, search: searchAll, refresh: () => { renderSidebar(); route(); }, getMode: () => mode };
 })();
