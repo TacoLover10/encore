@@ -8,9 +8,9 @@
   if (!E) return;
   const { store } = E;
 
-  const cache = store.get("explicit2", {});      // key -> 1 (explicit) | 0
+  const cache = store.get("explicit3", {});      // key -> 1 (explicit) | 0
   let dirty = false;
-  setInterval(() => { if (dirty) { dirty = false; store.set("explicit2", cache); } }, 3000);
+  setInterval(() => { if (dirty) { dirty = false; store.set("explicit3", cache); } }, 3000);
 
   const norm = (s) => String(s || "").toLowerCase().replace(/[’']/g, "")
     .replace(/\s*[\(\[][^\)\]]*[\)\]]/g, " ").replace(/\b(feat|ft)\.?\s.*$/, "")
@@ -31,6 +31,19 @@
       window[cb] = (d) => { done(); res(d); };
       s.onerror = () => { done(); rej(new Error("failed")); };
       s.src = `${url}&output=jsonp&callback=${cb}`;
+      document.head.appendChild(s);
+    });
+  }
+
+  function jsonpRaw(url) {
+    return new Promise((res, rej) => {
+      const cb = "__encore_it" + n++;
+      const s = document.createElement("script");
+      const t = setTimeout(() => { done(); rej(new Error("timeout")); }, 9000);
+      function done() { clearTimeout(t); delete window[cb]; s.remove(); }
+      window[cb] = (d) => { done(); res(d); };
+      s.onerror = () => { done(); rej(new Error("failed")); };
+      s.src = `${url}&callback=${cb}`;
       document.head.appendChild(s);
     });
   }
@@ -73,11 +86,22 @@
     const isExp = (r) => r.explicit_lyrics || r.explicit_content_lyrics === 1;
     const exp = same.filter(isExp);
     if (!exp.length) return 0;
-    const clean = same.filter((r) => !isExp(r) && (r.explicit_content_lyrics === 3 || CLEAN.test(r.title)));
-    if (!clean.length || !dur) return 1;
-    // Both versions exist: pick the one whose length matches this upload
-    const best = (arr) => Math.min(...arr.map((r) => Math.abs((r.duration || 0) - dur)));
-    return best(exp) <= best(clean) ? 1 : 0;
+    if (!dur) return 1;
+    // Is this upload the explicit or the clean version? Compare exact lengths.
+    // Deezer rounds lengths down, Apple gives exact lengths, and YouTube rounds up to the next second.
+    const expLens = exp.map((r) => r.duration);
+    const cleanLens = same.filter((r) => !isExp(r) && (r.explicit_content_lyrics === 3 || CLEAN.test(r.title))).map((r) => r.duration + 1);
+    try {
+      const it = await jsonpRaw(`https://itunes.apple.com/search?term=${encodeURIComponent(a + " " + nt)}&entity=song&limit=10`);
+      (it.results || []).forEach((r) => {
+        const rt = norm(r.trackName), ra = norm(r.artistName);
+        if (r.trackExplicitness === "cleaned" && (rt === nt || rt.startsWith(nt + " ")) && (na.includes(ra) || ra.includes(na))) cleanLens.push(Math.ceil(r.trackTimeMillis / 1000));
+      });
+    } catch { return null; }
+    const isExpLen = expLens.some((d) => d + 1 === dur || d === dur);
+    const isCleanLen = cleanLens.includes(dur);
+    const nearbyExplicit = expLens.some((d) => Math.abs(d + 1 - dur) <= 3);
+    return isCleanLen && !isExpLen && nearbyExplicit ? 0 : 1;
   }
 
   // Fallback when Deezer doesn't carry the song: check its lyrics (from LRCLIB) for explicit words.
