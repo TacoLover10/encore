@@ -435,3 +435,12 @@ input[type="password"]:focus { border-color: var(--accent); background: var(--pa
   .queue-panel { top: auto; left: 0; right: 0; width: auto; bottom: 0; max-height: 78dvh; border-radius: 18px 18px 0 0;
     padding-bottom: env(safe-area-inset-bottom); }
 }
+
+/* Version picker */
+.ver-opt { align-items: center; }
+.ver-dot { width: 20px; flex: none; display: grid; place-items: center; color: var(--accent); }
+.ver-dot .ic { width: 14px; height: 14px; }
+.ver-text { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.ver-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ver-text .t-src { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ver-opt.cur { background: var(--hover); }

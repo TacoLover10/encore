@@ -218,7 +218,6 @@
   // Remember which upload you picked for a song (e.g. explicit instead of clean)
   const songKey = (t) => (t.artist + "|" + t.title).toLowerCase().replace(/\s*[\(\[].*?[\)\]]/g, "").replace(/[^a-z0-9|]+/g, " ").trim();
   const versions = store.get("versions", {});
-  const switchTried = {};
   const playSid = (t) => versions[songKey(t)] || t.sid;
 
   // ---------------- Playback engine (HTML audio + YouTube embed) ----------------
@@ -287,7 +286,9 @@
       q.unshift(first); start = 0;
     }
     q.splice(start + 1, 0, ...queuedNext());   // songs you queued stay next in line
-    state.queue = q; state.index = start;
+    // Keep what you were listening to behind the new song, so Previous takes you back
+    const hist = state.current && loadedId ? state.queue.slice(Math.max(0, state.index - 49), state.index + 1) : [];
+    state.queue = [...hist, ...q]; state.index = hist.length + start;
     await loadAndPlay(true);
   }
 
@@ -334,37 +335,56 @@
     state.session = { track: slim(track), ts: Date.now(), secs: 0 };
   }
 
-  // "Sounds censored?" — try another upload of the same song and remember the choice
+  // "Sounds censored?" — pick another upload of the same song. The original is always
+  // first in the list, so you can go back any time. Encore remembers your pick.
+  const verCache = {};
+  async function findVersions(t) {
+    const key = songKey(t);
+    if (verCache[key]) return verCache[key];
+    const [a, b] = await Promise.allSettled([ytSearch(`${t.artist} ${t.title}`, "songs"), ytSearch(`${t.artist} ${t.title} explicit`, "videos")]);
+    const core = key.split("|")[1] || "";
+    const okDur = (c) => !t.duration || !c.duration || Math.abs(c.duration - t.duration) <= 20;
+    const bad = /\b(radio edit|instrumental|karaoke|cover|sped|slowed|nightcore|reaction|8d)\b/i;
+    const sameArtist = (c) => songKey(c).startsWith(t.artist.toLowerCase());
+    const seen = new Set([t.sid]);
+    const list = [...(a.value || []), ...(b.value || [])].filter((c) => {
+      if (seen.has(c.sid)) return false; seen.add(c.sid);
+      return okDur(c) && (songKey(c).split("|")[1] || "").includes(core) && !bad.test(c.title);
+    }).sort((x, y) => sameArtist(y) - sameArtist(x)).slice(0, 7);
+    return (verCache[key] = list);
+  }
+  function useVersion(t, sid) {
+    const key = songKey(t), at = engine.time();
+    if (sid === t.sid) delete versions[key]; else versions[key] = sid;
+    store.set("versions", versions);
+    yt.tried = new Set([sid]);
+    yt.player.loadVideoById(sid, at);
+    closeModal();
+    toast(sid === t.sid ? "Back to the original version" : "Switched version. Encore will remember this.");
+  }
   async function switchVersion() {
     const t = state.current;
     if (!t || mode !== "yt" || !yt.player) return;
     const nowSid = (yt.player.getVideoData && yt.player.getVideoData().video_id) || playSid(t);
-    const at = engine.time();
-    toast("Looking for another version…");
-    const [a, b] = await Promise.allSettled([ytSearch(`${t.artist} ${t.title}`, "songs"), ytSearch(`${t.artist} ${t.title} explicit`, "videos")]);
-    const found = [...(a.value || []), ...(b.value || [])];
-    const key = songKey(t), core = key.split("|")[1] || "";
-    const tried = (switchTried[key] ||= new Set());
-    tried.add(nowSid);
-    const okDur = (c) => !t.duration || !c.duration || Math.abs(c.duration - t.duration) <= 20;
-    const bad = /\b(clean|radio edit|edited|censored|instrumental|karaoke|cover|sped|slowed|nightcore|live|reaction)\b/i;
-    const sameArtist = (c) => songKey(c).startsWith(t.artist.toLowerCase());
-    const cands = found.filter((c) => !tried.has(c.sid) && okDur(c) && (songKey(c).split("|")[1] || "").includes(core) && !bad.test(c.title))
-      .sort((x, y) => sameArtist(y) - sameArtist(x));
-    const pick = cands[0];
-    if (!pick) {
-      tried.clear();
-      if (nowSid !== t.sid) {
-        delete versions[key]; store.set("versions", versions);
-        yt.tried = new Set([t.sid]); yt.player.loadVideoById(t.sid, at);
-        toast("Back to the original version");
-      } else toast("No other version found");
-      return;
-    }
-    versions[key] = pick.sid; store.set("versions", versions);
-    yt.tried = new Set([pick.sid]);
-    yt.player.loadVideoById(pick.sid, at);
-    toast("Switched version — Encore will remember this");
+    const row = (sid, title, sub, cur) => `<button class="modal-opt ver-opt ${cur ? "cur" : ""}" data-sid="${esc(sid)}">
+        <span class="ver-dot">${cur ? icon("play") : ""}</span>
+        <span class="ver-text"><span class="ver-title">${esc(title)}</span><span class="t-src">${esc(sub)}</span></span></button>`;
+    const draw = (list, loading) => {
+      const m = modal(`<h3>Choose a version</h3>
+        <p class="sub" style="margin:-6px 0 10px">If a song sounds censored or wrong, try another upload. Your pick is remembered.</p>
+        ${row(t.sid, "Original", `${t.title} · ${t.artist}${t.duration ? " · " + fmt(t.duration) : ""}`, nowSid === t.sid)}
+        ${loading ? `<div class="empty" style="padding:14px">Finding other versions…</div>`
+          : list.length ? list.map((c) => row(c.sid, c.title, `${c.artist}${c.duration ? " · " + fmt(c.duration) : ""}`, nowSid === c.sid)).join("")
+          : `<div class="empty" style="padding:14px">No other versions found.</div>`}
+        <div style="text-align:right;margin-top:12px"><button class="btn ghost" data-close>Close</button></div>`);
+      m.querySelectorAll("[data-sid]").forEach((b) => (b.onclick = () => { if (b.dataset.sid !== nowSid) useVersion(t, b.dataset.sid); else closeModal(); }));
+    };
+    draw([], true);
+    let list = [];
+    try { list = await findVersions(t); } catch {}
+    // A version picked earlier that the search didn't return still shows up
+    if (nowSid !== t.sid && !list.some((c) => c.sid === nowSid)) list = [{ sid: nowSid, title: "Your current pick", artist: t.artist }, ...list];
+    if (!$("#modal").classList.contains("hidden") && state.current === t) draw(list, false);
   }
 
   const slim = (t) => ({ id: t.id, source: t.source, sid: t.sid, title: t.title, artist: t.artist, art: t.art, duration: t.duration, url: t.url, genre: t.genre });
@@ -476,6 +496,7 @@
     wakeBusy = false;
   }
   document.addEventListener("visibilitychange", syncWakeLock);
+  document.addEventListener("pointerdown", () => { if (!wakeLock) syncWakeLock(); }, { passive: true });
 
   // Progress bar + listening-time tracking for stats
   let lastTick = null;
