@@ -234,3 +234,21 @@ input[type="range"] { accent-color: var(--accent); }
   .now .like, #shuffleBtn, #repeatBtn { display: none; }
   .buttons { gap: 8px; }
 }
+
+/* Icons */
+.ic { width: 1.15em; height: 1.15em; vertical-align: -0.2em; flex: none; }
+.nav-link { display: flex; align-items: center; gap: 12px; }
+.icon-btn, .play-btn, .card-play { display: inline-flex; align-items: center; justify-content: center; }
+.icon-btn.hidden { display: none; }
+.icon-btn .ic { width: 20px; height: 20px; }
+.play-btn .ic { width: 18px; height: 18px; }
+.card-play { color: #fff; }
+.card .ph .ic { width: 44px; height: 44px; }
+.pl-cover .ic { width: 72px; height: 72px; }
+.playlist-item .ic { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; }
+.btn .ic { margin-right: 4px; }
+.t-actions button .ic, .tracks th .ic { width: 17px; height: 17px; }
+#npClose .ic { width: 30px; height: 30px; }
+.np-actions { display: flex; gap: 6px; }
+.np-actions .ic { width: 24px; height: 24px; }
+.volume > span .ic { color: var(--muted); }
