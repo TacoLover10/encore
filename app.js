@@ -329,7 +329,15 @@
     const cands = found.filter((c) => !tried.has(c.sid) && okDur(c) && (songKey(c).split("|")[1] || "").includes(core) && !bad.test(c.title))
       .sort((x, y) => sameArtist(y) - sameArtist(x));
     const pick = cands[0];
-    if (!pick) { tried.clear(); toast("No other version found"); return; }
+    if (!pick) {
+      tried.clear();
+      if (nowSid !== t.sid) {
+        delete versions[key]; store.set("versions", versions);
+        yt.tried = new Set([t.sid]); yt.player.loadVideoById(t.sid, at);
+        toast("Back to the original version");
+      } else toast("No other version found");
+      return;
+    }
     versions[key] = pick.sid; store.set("versions", versions);
     yt.tried = new Set([pick.sid]);
     yt.player.loadVideoById(pick.sid, at);
