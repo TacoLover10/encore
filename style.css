@@ -403,3 +403,10 @@ input[type="password"]:focus { border-color: var(--accent); background: var(--pa
   .tabs::-webkit-scrollbar { display: none; }
   .tab { flex: none; }
 }
+
+/* Sync: status + key setup */
+.sync-status { flex: 1 1 180px; align-self: center; color: var(--muted); font-size: 14px; }
+.sync-note a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+.sync-more { margin-top: 14px; max-width: 640px; }
+.sync-more summary { cursor: pointer; color: var(--text); font-size: 14px; font-weight: 600; margin-bottom: 10px; list-style-position: inside; }
+.sync-more .sync-row input, #syncKey { font-family: inherit; }
