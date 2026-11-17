@@ -108,6 +108,20 @@
   }
   const cleanArtist = (s) => String(s || "Unknown artist").replace(/\s+-\s+Topic$/i, "");
 
+  // English first: songs in other scripts (Korean, Japanese, Cyrillic, Arabic, Hindi…) or mostly in
+  // another language go lower. A song with a few words of another language counts as English.
+  const NON_LATIN = /[\u0400-\u04FF\u0590-\u06FF\u0900-\u0DFF\u0E00-\u0E7F\u1100-\u11FF\u3040-\u30FF\u3130-\u318F\u3400-\u9FFF\uAC00-\uD7AF]/;
+  const FOREIGN = /(?:^|[\s(\[\-"'])(el|la|los|las|del|que|mi|tu|te|yo|amor|coraz[oó]n|quiero|baila|noche|vida|contigo|bebé|mami|papi|eres|esta|como|para|por|sin|una|muy|tú|ich|und|nicht|je|et|les|moi|toi|non|meu|minha|você|sono|amore)(?=$|[\s,.!?)\]\-"'])/gi;
+  const SPANISH_ACTS = /\b(bad bunny|j balvin|karol g|daddy yankee|ozuna|anuel|peso pluma|feid|rauw alejandro|maluma|myke towers|grupo frontera|fuerza regida|junior h|natanael cano|luis fonsi|don omar|romeo santos|rosal[ií]a|quevedo|bizarrap|eladio carri[oó]n|sech|nicky jam|wisin|farruko|arc[aá]ngel|jhayco|jhay cortez|young miko|carin le[oó]n|banda ms|christian nodal|sebasti[aá]n yatra|manuel turizo|tini|mar[ií]a becerra|gabito ballesteros|tito double p|neton vega|ivan cornejo|kali uchis|cris mj|blessd|ryan castro)\b/i;
+  const langScore = (t) => {
+    const title = String(t.title || ""), txt = `${title} ${t.artist}`;
+    if (NON_LATIN.test(txt)) return 2;
+    const words = (title.match(FOREIGN) || []).length, accents = (title.match(/[áíóúñ¿¡ãõ]/gi) || []).length;
+    return SPANISH_ACTS.test(txt) || words >= 3 || accents >= 2 || (accents && words) || (words >= 2 && /[áéíóúñ]/i.test(title)) ? 1 : 0;
+  };
+  const englishFirst = (list, q = "") => NON_LATIN.test(q) ? list
+    : list.map((t, i) => ({ t, i, l: langScore(t) })).sort((a, b) => a.l - b.l || a.i - b.i).map((x) => x.t);
+
   // Ask three mirrors at once and use whichever answers first, and remember answers for this visit
   const searchMemo = new Map();
   function ytSearch(q, kind = "songs") {
@@ -140,7 +154,7 @@
             };
           });
         } else {
-          const r = await timeoutFetch(`${base}/api/v1/search?q=${encodeURIComponent(kind === "songs" ? q + " audio" : q)}&type=video`);
+          const r = await timeoutFetch(`${base}/api/v1/search?q=${encodeURIComponent(kind === "songs" ? q + " audio" : q)}&type=video&region=US`);
           if (!r.ok) throw new Error(r.status);
           const j = await r.json();
           tracks = (Array.isArray(j) ? j : []).filter((i) => i.type === "video" && i.videoId).map((i) => ({
@@ -153,6 +167,7 @@
           const isClean = (t) => /\b(clean|radio edit|edited|censored)\b/i.test(t.title);
           tracks = [...tracks.filter((t) => !isClean(t)), ...tracks.filter(isClean)];
         }
+        tracks = englishFirst(tracks, q);
         if (!tracks.length && kind === "songs") throw new Error("empty");
         store.set("mirror", base);
         return tracks;
@@ -168,7 +183,9 @@
     const cleanRe = /\b(clean|radio edit|edited|censored)\b/i;
     const score = (t) => { const hay = norm(t.title + " " + t.artist); return words.filter((w) => hay.includes(w)).length - (cleanRe.test(t.title) && !cleanRe.test(q) ? 0.5 : 0); };
     const seen = new Set();
-    return list.map((t, i) => ({ t, i, s: score(t) })).sort((a, b) => b.s - a.s || a.i - b.i)
+    // Best match first; among equally good matches, English songs first
+    const nl = NON_LATIN.test(q);
+    return list.map((t, i) => ({ t, i, s: score(t), l: nl ? 0 : langScore(t) })).sort((a, b) => b.s - a.s || a.l - b.l || a.i - b.i)
       .map((x) => x.t).filter((t) => !seen.has(t.sid) && seen.add(t.sid));
   }
 
@@ -729,10 +746,10 @@
     ["Hip-hop & rap", `hip hop hits ${YEAR}`],
     ["Pop", `pop hits ${YEAR}`],
     ["R&B", `r&b hits ${YEAR}`],
-    ["Latin", `latin hits ${YEAR}`],
     ["Country", `country hits ${YEAR}`],
     ["Rock classics", "classic rock hits"],
     ["Throwbacks", "2000s hits"],
+    ["Latin", `latin hits ${YEAR}`],
   ];
 
   // Skip hour-long compilations and "Top 100" mixes on Home
@@ -740,13 +757,16 @@
 
   // Cache home shelves for 6 hours so Home loads instantly
   async function shelf(query) {
-    const cache = store.get("shelves2", {});
+    const cache = store.get("shelves3", {});
     const hit = cache[query];
     if (hit && Date.now() - hit.at < 6 * 3600e3 && hit.tracks.length) return hit.tracks;
-    const tracks = (await ytSearch(query, "songs")).filter(isSingleSong).slice(0, 14);
+    // Home leans English; songs in other scripts are left off unless the shelf would run short
+    const all = englishFirst((await ytSearch(query, "songs")).filter(isSingleSong));
+    const eng = all.filter((t) => langScore(t) < 2);
+    const tracks = (eng.length >= 8 ? eng : all).slice(0, 14);
     cache[query] = { at: Date.now(), tracks };
-    localStorage.removeItem("encore:shelves");
-    store.set("shelves2", cache);
+    localStorage.removeItem("encore:shelves"); localStorage.removeItem("encore:shelves2");
+    store.set("shelves3", cache);
     return tracks;
   }
 
