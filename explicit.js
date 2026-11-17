@@ -158,7 +158,9 @@
   }
 
   let timer;
-  new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(scan, 80); })
-    .observe(document.body, { childList: true, subtree: true });
+  // Only watch the parts of the page that show songs (not the progress bar or lyrics, which change constantly)
+  const mo = new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(scan, 120); });
+  mo.observe(document.querySelector("#main"), { childList: true, subtree: true });
+  ["#npArtist", "#npSongArtist"].forEach((s) => { const el = document.querySelector(s); if (el) mo.observe(el, { childList: true }); });
   scan();
 })();
