@@ -5,22 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Encore</title>
   <meta name="theme-color" content="#121212" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
       <div class="logo"><span class="logo-dot"></span>Encore</div>
       <nav>
-        <a href="#home" data-view="home" class="nav-link active">🏠 Home</a>
-        <a href="#search" data-view="search" class="nav-link">🔍 Search</a>
-        <a href="#library" data-view="library" class="nav-link">📚 Your Library</a>
-        <a href="#stats" data-view="stats" class="nav-link">📊 Monthly Stats</a>
+        <a href="#home" data-view="home" class="nav-link active"><span data-icon="home"></span> Home</a>
+        <a href="#search" data-view="search" class="nav-link"><span data-icon="search"></span> Search</a>
+        <a href="#library" data-view="library" class="nav-link"><span data-icon="library"></span> Your Library</a>
+        <a href="#stats" data-view="stats" class="nav-link"><span data-icon="stats"></span> Monthly Stats</a>
       </nav>
       <div class="sidebar-section">
         <div class="sidebar-head">
           <span>Playlists</span>
-          <button id="newPlaylistBtn" class="icon-btn" title="New playlist">＋</button>
+          <button id="newPlaylistBtn" class="icon-btn" title="New playlist"><span data-icon="plus"></span></button>
         </div>
         <div id="playlistList" class="playlist-list"></div>
       </div>
@@ -36,15 +36,15 @@
         <div id="npTitle" class="np-title">Nothing playing</div>
         <div id="npArtist" class="np-artist"></div>
       </div>
-      <button id="npLike" class="icon-btn like" title="Save to library">♡</button>
+      <button id="npLike" class="icon-btn like" title="Save to library"><span data-icon="heart"></span></button>
     </div>
     <div class="controls">
       <div class="buttons">
-        <button id="shuffleBtn" class="icon-btn" title="Shuffle">🔀</button>
-        <button id="prevBtn" class="icon-btn" title="Previous">⏮</button>
-        <button id="playBtn" class="play-btn" title="Play/Pause">▶</button>
-        <button id="nextBtn" class="icon-btn" title="Next">⏭</button>
-        <button id="repeatBtn" class="icon-btn" title="Repeat">🔁</button>
+        <button id="shuffleBtn" class="icon-btn" title="Shuffle"><span data-icon="shuffle"></span></button>
+        <button id="prevBtn" class="icon-btn" title="Previous"><span data-icon="prev"></span></button>
+        <button id="playBtn" class="play-btn" title="Play/Pause"><span data-icon="play"></span></button>
+        <button id="nextBtn" class="icon-btn" title="Next"><span data-icon="next"></span></button>
+        <button id="repeatBtn" class="icon-btn" title="Repeat"><span data-icon="repeat"></span></button>
       </div>
       <div class="progress">
         <span id="curTime">0:00</span>
@@ -53,15 +53,15 @@
       </div>
     </div>
     <div class="volume">
-      <button id="lyricsBtn" class="icon-btn" title="Lyrics">🎤</button>
-      <button id="videoBtn" class="icon-btn" title="Show / hide video">📺</button>
-      <span>🔊</span>
+      <button id="lyricsBtn" class="icon-btn" title="Lyrics"><span data-icon="mic"></span></button>
+      <button id="videoBtn" class="icon-btn" title="Show / hide video"><span data-icon="video"></span></button>
+      <span data-icon="volume"></span>
       <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" />
     </div>
   </footer>
 
   <div id="videoBox" class="video-box hidden">
-    <div class="video-head"><span>Now playing</span><span><button id="videoSize" class="icon-btn" title="Bigger / smaller">⤢</button><button id="videoClose" class="icon-btn" title="Close video">✕</button></span></div>
+    <div class="video-head"><span>Now playing</span><span><button id="videoSize" class="icon-btn" title="Bigger / smaller"><span data-icon="expand"></span></button><button id="videoClose" class="icon-btn" title="Close video"><span data-icon="close"></span></button></span></div>
     <div class="video-frame"><div id="ytPlayer"></div></div>
   </div>
 
@@ -69,7 +69,7 @@
     <div id="npBg" class="np-bg"></div>
     <div class="np-inner">
       <div class="np-top">
-        <button id="npClose" class="icon-btn" title="Close (Esc)">⌄</button>
+        <button id="npClose" class="icon-btn" title="Close (Esc)"><span data-icon="down"></span></button>
         <div class="np-tabs">
           <button class="tab" data-np-tab="song">Song</button>
           <button class="tab" data-np-tab="video">Video</button>
@@ -84,7 +84,7 @@
       </div>
       <div class="np-meta">
         <div style="min-width:0"><div id="npSongTitle" class="np-song-title"></div><div id="npSongArtist" class="np-song-artist"></div></div>
-        <button id="npLike2" class="icon-btn like" title="Like">♡</button>
+        <span class="np-actions"><button id="npSwitch" class="icon-btn" title="Sounds censored? Switch to another version"><span data-icon="swap"></span></button><button id="npLike2" class="icon-btn like" title="Like"><span data-icon="heart"></span></button></span>
       </div>
       <div class="np-progress"><span id="npCur">0:00</span><input id="npSeek" type="range" min="0" max="1000" value="0" /><span id="npDur">0:00</span></div>
     </div>
@@ -93,7 +93,8 @@
   <div id="modal" class="modal hidden"></div>
   <div id="toast" class="toast hidden"></div>
   <audio id="audio" preload="auto"></audio>
-  <script src="app.js?v=5"></script>
-  <script src="np.js?v=5"></script>
+  <script src="icons.js?v=6"></script>
+  <script src="app.js?v=6"></script>
+  <script src="np.js?v=6"></script>
 </body>
 </html>
