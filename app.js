@@ -141,6 +141,19 @@
     throw new Error("All search mirrors are down right now");
   }
 
+  // "All" search: official songs + every other upload (remixes, parodies, covers), best matches first
+  async function searchAll(q) {
+    const [songs, vids] = await Promise.allSettled([ytSearch(q, "songs"), ytSearch(q, "videos")]);
+    const list = [...(songs.value || []), ...(vids.value || [])];
+    if (!list.length) throw (songs.reason || vids.reason || new Error("No results"));
+    const norm = (x) => String(x).toLowerCase().replace(/[’']/g, "");
+    const words = norm(q).split(/\s+/).filter(Boolean);
+    const score = (t) => { const hay = norm(t.title + " " + t.artist); return words.filter((w) => hay.includes(w)).length; };
+    const seen = new Set();
+    return list.map((t, i) => ({ t, i, s: score(t) })).sort((a, b) => b.s - a.s || a.i - b.i)
+      .map((x) => x.t).filter((t) => !seen.has(t.sid) && seen.add(t.sid));
+  }
+
   // ---------------- Audius (indie, full tracks) ----------------
   let audiusHost = null;
   async function getAudiusHost() {
@@ -492,14 +505,18 @@
     ["Throwbacks", "2000s hits"],
   ];
 
+  // Skip hour-long compilations and "Top 100" mixes on Home
+  const isSingleSong = (t) => (!t.duration || t.duration < 600) && !/\b(top \d+|mix|playlist|compilation|full album|non.?stop|hours?)\b/i.test(t.title);
+
   // Cache home shelves for 6 hours so Home loads instantly
   async function shelf(query) {
-    const cache = store.get("shelves", {});
+    const cache = store.get("shelves2", {});
     const hit = cache[query];
     if (hit && Date.now() - hit.at < 6 * 3600e3 && hit.tracks.length) return hit.tracks;
-    const tracks = (await ytSearch(query, "songs")).slice(0, 14);
+    const tracks = (await ytSearch(query, "songs")).filter(isSingleSong).slice(0, 14);
     cache[query] = { at: Date.now(), tracks };
-    store.set("shelves", cache);
+    localStorage.removeItem("encore:shelves");
+    store.set("shelves2", cache);
     return tracks;
   }
 
@@ -526,12 +543,13 @@
       .catch(() => { const el = $("#indie"); if (el) el.innerHTML = `<div class="empty">Couldn't load.</div>`; });
   }
 
-  let lastQuery = "", lastTab = "songs";
+  let lastQuery = "", lastTab = "all";
   function viewSearch() {
     main.innerHTML = `${mobileNav}<h1>Search</h1>
       <input id="q" type="search" placeholder="What do you want to listen to?" value="${esc(lastQuery)}" autocomplete="off" />
       <div class="tabs" id="srcTabs">
-        <button class="tab" data-t="songs">Songs</button>
+        <button class="tab" data-t="all">All</button>
+        <button class="tab" data-t="songs">Official songs</button>
         <button class="tab" data-t="videos">Videos & remixes</button>
         <button class="tab" data-t="indie">Indie</button>
       </div>
@@ -553,7 +571,7 @@
       const key = tab + ":" + term.toLowerCase();
       if (!state.searchCache[key]) {
         try {
-          state.searchCache[key] = tab === "indie" ? await searchAudius(term) : await ytSearch(term, tab);
+          state.searchCache[key] = tab === "indie" ? await searchAudius(term) : tab === "all" ? await searchAll(term) : await ytSearch(term, tab);
         } catch (e) {
           if (q.value.trim() === term && lastTab === tab) box.innerHTML = `<div class="empty">Search is busy right now (${esc(e.message)}). Try again in a moment.</div>`;
           return;
