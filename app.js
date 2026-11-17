@@ -228,6 +228,7 @@
   let mode = "audio";
 
   const yt = { player: null, ready: null, tried: new Set() };
+  let resumeAt = 0;   // where to pick a song back up (Go back after switching songs)
   function loadYT() {
     if (yt.ready) return yt.ready;
     yt.ready = new Promise((res) => {
@@ -246,7 +247,10 @@
   }
   function onYtState(e) {
     if (mode !== "yt") return;
-    if (e.data === YT.PlayerState.PLAYING) { lastTick = performance.now(); updatePlayBtn(); }
+    if (e.data === YT.PlayerState.PLAYING) {
+      lastTick = performance.now(); updatePlayBtn();
+      if (resumeAt) { const at = resumeAt; resumeAt = 0; if (yt.player.getCurrentTime() < at - 2) yt.player.seekTo(at, true); }
+    }
     if (e.data === YT.PlayerState.PAUSED) { lastTick = null; flushSession(); updatePlayBtn(); }
     if (e.data === YT.PlayerState.ENDED) next(true);
   }
@@ -323,6 +327,7 @@
         document.dispatchEvent(new Event("encore:mode"));
         const p = await loadYT();
         p.setVolume(Math.round(volume * 100));
+        resumeAt = startAt;
         p.loadVideoById(playSid(track), startAt);
       } else {
         if (yt.player) yt.player.stopVideo();
