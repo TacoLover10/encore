@@ -25,7 +25,7 @@
   sheen.className = "np-cover-sheen";
   cover.append(glow, art, sheen);
 
-  const cache = store.get("motion", {});
+  const cache = store.get("motion2", {});
   const norm = (s) => String(s || "").toLowerCase().replace(/[’']/g, "")
     .replace(/\s*[\(\[][^\)\]]*[\)\]]/g, " ").replace(/\b(feat|ft)\.?\s.*$/, "")
     .replace(/[^a-z0-9]+/g, " ").trim();
@@ -58,7 +58,8 @@
       const ra = norm(r.artist && r.artist.name), rt = norm(r.title);
       return ra && (na.includes(ra) || ra.includes(na)) && (rt === nt || rt.startsWith(nt + " ") || nt.startsWith(rt + " "));
     });
-    if (!hit || (hit.rank || 0) < 400000) return null;                            // obscure tracks don't need one
+    if (!hit) return fromApple(nt, na);                                            // Deezer doesn't carry it: ask Apple's catalog
+    if ((hit.rank || 0) < 400000) return null;                                     // obscure tracks don't need one
     const d = await jsonp(`https://api.deezer.com/track/${hit.id}`);
     let bpm = (d && d.bpm) || 0;
     const gain = d && typeof d.gain === "number" ? d.gain : -10;
@@ -66,6 +67,21 @@
     const loud = gain >= -9.6, quiet = gain <= -11.5;
     const style = quiet ? "breathe" : loud || bpm >= 100 ? "pulse" : bpm && bpm < 75 ? "breathe" : "drift";
     return { style, beat: bpm ? 60 / bpm : loud ? 0.5 : 0.75 };
+  }
+
+  // Fallback for albums Deezer doesn't carry: confirm it's an official release on Apple's catalog,
+  // and choose the style from its genre.
+  async function fromApple(nt, na) {
+    const d = await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(na + " " + nt)}&entity=song&limit=10`);
+    const r = ((d && d.results) || []).find((x) => {
+      const ra = norm(x.artistName), rt = norm(x.trackName);
+      return ra && (na.includes(ra) || ra.includes(na)) && (rt === nt || rt.startsWith(nt + " ") || nt.startsWith(rt + " "));
+    });
+    if (!r) return null;
+    const g = String(r.primaryGenreName || "").toLowerCase();
+    if (/hip-hop|rap|dance|electronic|house|latin|reggaeton|k-pop/.test(g)) return { style: "pulse", beat: 0.5 };
+    if (/singer|songwriter|jazz|classical|country|soundtrack|folk|vocal|christian/.test(g)) return { style: "breathe", beat: 0.75 };
+    return { style: "drift", beat: 0.75 };
   }
 
   let current = null;
@@ -87,7 +103,7 @@
     if (!t) return;
     if (!(id in cache)) {
       try { cache[id] = await decide(t); } catch { return; }   // try again next time if Deezer didn't answer
-      store.set("motion", cache);
+      store.set("motion2", cache);
     }
     if (current === id) apply(cache[id]);
   }
