@@ -752,7 +752,7 @@
     ["Country", 6, `country hits ${YEAR}`],
     ["Dance & electronic", 17, `dance hits ${YEAR}`],
     ["Rock classics", null, "classic rock hits"],
-    ["Throwbacks", null, "2000s hits"],
+    ["Throwbacks", "list", "2000s hits"],
     ["Latin", 12, `latin hits ${YEAR}`],
   ];
   async function usChart(genre) {
@@ -764,6 +764,22 @@
       title: e["im:name"].label, artist: e["im:artist"].label,
       art: (e["im:image"]?.slice(-1)[0]?.label || "").replace(/\d+x\d+bb\./, "400x400bb."),
       duration: 0, genre: e.category?.attributes?.label || "",
+    }));
+  }
+  const THROWBACKS = [["Hey Ya!", "Outkast"], ["Crazy in Love", "Beyoncé"], ["In Da Club", "50 Cent"], ["Mr. Brightside", "The Killers"],
+    ["Yeah!", "Usher"], ["Umbrella", "Rihanna"], ["Toxic", "Britney Spears"], ["Since U Been Gone", "Kelly Clarkson"],
+    ["Hot in Herre", "Nelly"], ["Gold Digger", "Kanye West"], ["SexyBack", "Justin Timberlake"], ["Lose Yourself", "Eminem"],
+    ["Hips Don't Lie", "Shakira"], ["Irreplaceable", "Beyoncé"], ["Low", "Flo Rida"], ["Bye Bye Bye", "NSYNC"]];
+  async function throwbacks() {
+    const list = THROWBACKS.slice().sort(() => Math.random() - 0.5);
+    return Promise.all(list.map(async ([title, artist]) => {
+      try {
+        const r = await timeoutFetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artist + " " + title)}&entity=song&country=US&limit=1`, 8000);
+        const x = (await r.json()).results[0];
+        if (x) return { id: "chart:" + x.trackId, source: "yt", sid: null, title: x.trackName, artist: x.artistName,
+          art: (x.artworkUrl100 || "").replace("100x100bb", "400x400bb"), duration: Math.ceil((x.trackTimeMillis || 0) / 1000), genre: x.primaryGenreName || "" };
+      } catch {}
+      return { id: "chart:" + songKey({ title, artist }), source: "yt", sid: null, title, artist, art: "", duration: 0, genre: "" };
     }));
   }
   // Find the YouTube upload for a chart song the first time it plays
@@ -786,7 +802,8 @@
     if (hit && Date.now() - hit.at < 6 * 3600e3 && hit.tracks.length) return hit.tracks;
     // Home leans English; songs in other scripts are left off unless the shelf would run short
     let tracks = [];
-    if (genre !== null) try { tracks = (await usChart(genre)).slice(0, 16); } catch {}
+    if (genre === "list") tracks = await throwbacks();
+    else if (genre !== null) try { tracks = (await usChart(genre)).slice(0, 16); } catch {}
     if (!tracks.length) {
       const all = englishFirst((await ytSearch(query, "songs")).filter(isSingleSong));
       const eng = all.filter((t) => langScore(t) < 2);
