@@ -263,28 +263,29 @@
       q.unshift(first); start = 0;
     }
     state.queue = q; state.index = start;
-    await loadAndPlay();
+    await loadAndPlay(true);
   }
 
-  async function loadAndPlay() {
+  async function loadAndPlay(userStarted = false) {
     const track = state.queue[state.index];
     if (!track) return;
     endSession();
     state.current = track;
     updateNowPlaying();
+    if (userStarted) document.dispatchEvent(new Event("encore:userplay"));
     try {
       if (track.source === "yt") {
         audio.pause();
         mode = "yt";
         yt.tried = new Set([track.sid]);
-        videoBox.classList.remove("hidden");
+        document.dispatchEvent(new Event("encore:mode"));
         const p = await loadYT();
         p.setVolume(Math.round(volume * 100));
         p.loadVideoById(track.sid);
       } else {
         if (yt.player) yt.player.stopVideo();
-        videoBox.classList.add("hidden");
         mode = "audio";
+        document.dispatchEvent(new Event("encore:mode"));
         audio.src = await streamUrl(track);
         await audio.play();
       }
@@ -362,6 +363,7 @@
     if ("mediaSession" in navigator && t) {
       navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: t.artist, artwork: t.art ? [{ src: t.art, sizes: "400x400" }] : [] });
     }
+    document.dispatchEvent(new Event("encore:track"));
   }
   if ("mediaSession" in navigator) {
     navigator.mediaSession.setActionHandler("nexttrack", () => next());
@@ -781,4 +783,7 @@
   }
   window.addEventListener("hashchange", route);
   route();
+
+  // Shared with np.js (Now Playing screen + lyrics)
+  window.Encore = { state, engine, esc, fmt, store, toast, timeoutFetch, toggleLike, isLiked, getMode: () => mode };
 })();
