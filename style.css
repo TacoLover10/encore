@@ -252,3 +252,8 @@ input[type="range"] { accent-color: var(--accent); }
 .np-actions { display: flex; gap: 6px; }
 .np-actions .ic { width: 24px; height: 24px; }
 .volume > span .ic { color: var(--muted); }
+
+/* Explicit badge */
+.exp { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; margin-right: 6px; border-radius: 2px;
+  background: #b3b3bd; color: #0e0e12; font-size: 9px; font-weight: 800; line-height: 1; vertical-align: 1px; flex: none; }
+#npSongArtist .exp { width: 18px; height: 18px; font-size: 11px; vertical-align: 2px; }
