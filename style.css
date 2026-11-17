@@ -349,3 +349,57 @@ tr.track:hover .t-actions button { opacity: 1; }
 .sync-row { display: flex; gap: 10px; flex-wrap: wrap; max-width: 640px; }
 .sync-row input { flex: 1 1 180px; width: auto; }
 .sync-note { color: var(--muted); font-size: 13px; margin: 10px 0 0; max-width: 60ch; line-height: 1.5; }
+
+/* ---------- Phones & iPhone polish ---------- */
+html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { touch-action: manipulation; }
+button, a, .card, .tab, .recent-item, .deck-result { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input[type="password"] {
+  background: var(--panel-2); border: 1px solid transparent; color: var(--text); padding: 13px 18px; border-radius: 999px;
+  font: inherit; font-size: 15px; width: 100%; outline: none; transition: border-color .15s, background .15s;
+}
+input[type="password"]:focus { border-color: var(--accent); background: var(--panel); }
+.app { height: calc(100dvh - var(--player-h) - var(--gap)); }
+.tabbar { display: none; }
+
+@media (max-width: 800px) {
+  :root { --tabbar-h: 56px; --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px); }
+  html, body { position: fixed; inset: 0; overflow: hidden; }
+  .app { padding-top: calc(var(--gap) + var(--safe-t)); height: calc(100dvh - var(--player-h) - var(--tabbar-h) - var(--safe-b)); }
+  .main, .mixer { padding: 20px 16px 32px; -webkit-overflow-scrolling: touch; }
+  h1 { font-size: 30px; margin-bottom: 18px; }
+  h2 { font-size: 20px; margin: 28px 0 12px; }
+  .mobile-nav { display: none !important; }
+
+  /* Bottom tab bar */
+  .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    height: calc(var(--tabbar-h) + var(--safe-b)); padding-bottom: var(--safe-b);
+    background: color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+    border-top: 1px solid #ffffff12; }
+  .tabbar .nav-link { flex-direction: column; justify-content: center; gap: 3px; padding: 4px 0 0; border-radius: 0; background: none;
+    color: var(--muted); font-size: 10.5px; font-weight: 600; letter-spacing: .01em; }
+  .tabbar .nav-link .ic { width: 23px; height: 23px; }
+  .tabbar .nav-link.active { background: none; color: var(--text); }
+  .tabbar .nav-link.active .ic { color: var(--accent); }
+
+  /* Player sits just above the tab bar */
+  .player { bottom: calc(var(--tabbar-h) + var(--safe-b)); left: var(--gap); right: var(--gap); }
+  .np { top: calc(var(--gap) + var(--safe-t)); bottom: calc(var(--player-h) + var(--tabbar-h) + var(--safe-b)); }
+  .toast { bottom: calc(var(--player-h) + var(--tabbar-h) + var(--safe-b) + 12px); max-width: calc(100vw - 32px); text-align: center; }
+  .video-box { bottom: calc(var(--player-h) + var(--tabbar-h) + var(--safe-b) + 10px); }
+
+  /* 16px text stops iPhone from zooming in when you tap a field */
+  input[type="text"], input[type="search"], input[type="password"], select, .deck-search input { font-size: 16px; }
+
+  /* Comfortable tap targets */
+  .icon-btn { min-width: 40px; min-height: 40px; }
+  .t-actions button { padding: 8px; }
+  .tracks td { padding: 7px 6px; }
+  .tracks th:first-child, .tracks td.t-num { display: none; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .shelf { grid-auto-columns: 148px; }
+  .sync-row .btn { flex: 1 1 auto; justify-content: center; }
+  .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -16px; padding-right: 16px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: none; }
+}
