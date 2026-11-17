@@ -136,7 +136,12 @@
       } catch (e) { if (tab) tab.close(); toast("Couldn't prepare the save: " + e.message); }
     };
   }
-  const fill = () => { const box = document.getElementById("syncBox"); if (box && !box.dataset.ready) { box.dataset.ready = "1"; render(box); } };
+  const fill = () => {
+    const box = document.getElementById("syncBox");
+    if (!box || box.dataset.ready) return;
+    box.dataset.ready = "1"; render(box);
+    if (location.hash === "#sync") { box.scrollIntoView({ block: "center" }); const i = box.querySelector("input"); if (i && !i.value) i.focus(); }
+  };
   new MutationObserver(fill).observe(document.getElementById("main"), { childList: true });
   fill();
 
