@@ -31,6 +31,7 @@
     queueAdd: '<path d="M3 6h12M3 12h12M3 18h8"/><path d="M18 14v8M14 18h8"/>',
     playNext: '<path fill="currentColor" stroke="none" d="M3 4.5v7l5.5-3.5z"/><path d="M12 6h9M3 15h18M3 20h18"/>',
     up: '<path d="M6 15l6-6 6 6"/>',
+    chevron: '<path d="M9 6l6 6-6 6"/>',
     swap: '<path d="M7 4L3 8l4 4"/><path d="M3 8h14"/><path d="M17 12l4 4-4 4"/><path d="M21 16H7"/>',
   };
   window.icon = (name) =>

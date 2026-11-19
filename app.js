@@ -933,10 +933,11 @@
 
   function viewLibrary() {
     main.innerHTML = `${mobileNav}<h1>Your Library</h1>
-      <div class="row" style="margin-bottom:20px"><a class="btn ghost" href="#files">${icon("upload")} Upload your music</a></div>
-      <div class="grid">
-        <a class="card" href="#liked"><div class="ph">${icon("heartFill")}</div><div class="card-title">Liked Songs</div><div class="card-sub">${state.liked.length} songs</div></a>
-        <a class="card" href="#files"><div class="ph">${icon("folder")}</div><div class="card-title">My Files</div><div class="card-sub">Your uploads</div></a>
+      <div class="lib-list">
+        <a class="lib-row" href="#liked"><span class="lib-ic liked">${icon("heartFill")}</span>
+          <span class="lib-text"><span class="lib-name">Liked Songs</span><span class="lib-sub">${state.liked.length} song${state.liked.length === 1 ? "" : "s"}</span></span>${icon("chevron")}</a>
+        <a class="lib-row" href="#files"><span class="lib-ic">${icon("folder")}</span>
+          <span class="lib-text"><span class="lib-name">My Files</span><span class="lib-sub">Songs you've uploaded</span></span>${icon("chevron")}</a>
       </div>`;
   }
 

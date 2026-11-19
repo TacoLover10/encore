@@ -543,7 +543,7 @@ input[type="range"] { height: 3px; }
   .main::before { height: 200px; }
   h1 { font-size: 28px; margin-bottom: 14px; }
   h2 { font-size: 19px; margin: 30px 0 10px; }
-  .shelf { grid-auto-columns: 144px; margin: 0 -18px; padding: 0 10px 4px; scrollbar-width: none; }
+  .shelf { grid-auto-columns: 144px; margin: 0 -18px; padding: 0 10px 4px; scroll-padding-inline: 10px; scrollbar-width: none; }
   .shelf::-webkit-scrollbar, .main::-webkit-scrollbar { display: none; }
   .main { scrollbar-width: none; }
   .tracks thead { display: none; }
@@ -551,4 +551,23 @@ input[type="range"] { height: 3px; }
     -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
   .tabbar { border-top-color: var(--line); }
   .tabbar .nav-link.active .ic { color: var(--text); }
+}
+
+/* Library as a simple list */
+.lib-list { display: flex; flex-direction: column; gap: 2px; max-width: 560px; }
+.lib-row { display: flex; align-items: center; gap: 14px; padding: 8px; border-radius: 10px; }
+.lib-row:hover { background: var(--hover); }
+.lib-row > .ic { width: 16px; height: 16px; color: var(--muted); }
+.lib-ic { width: 52px; height: 52px; border-radius: 8px; display: grid; place-items: center; background: var(--panel-2); color: var(--text); flex: none; }
+.lib-ic .ic { width: 22px; height: 22px; }
+.lib-ic.liked { background: linear-gradient(140deg, var(--accent), #7a4be0); color: #fff; }
+.lib-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.lib-name { font-weight: 600; }
+.lib-sub { color: var(--muted); font-size: 13px; }
+
+@media (max-width: 800px) {
+  .stat-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .stat { padding: 14px 12px; border-radius: 10px; }
+  .stat .n { font-size: 24px; }
+  .stat .l { font-size: 12px; }
 }
