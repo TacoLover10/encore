@@ -593,6 +593,7 @@
   function updatePlayBtn() { const k = engine.isPaused() ? "play" : "pause", b = $("#playBtn"); if (b.dataset.k !== k) { b.dataset.k = k; b.innerHTML = icon(k); } }
   function updateNowPlaying() {
     const t = state.current;
+    document.body.classList.toggle("idle", !t);   // no player bar until something plays
     $("#npTitle").innerHTML = t ? esc(t.title) + " " + badge(t) : "Nothing playing";
     $("#npArtist").textContent = t ? t.artist : "";
     $("#npArt").src = t?.art || "";
@@ -733,9 +734,16 @@
       <div class="card-title">${esc(t.title)}</div><div class="card-sub">${esc(t.artist)}</div></div>`).join("")}</div>`;
   }
   const bindCards = (root, tracks) => root.querySelectorAll(".card[data-i]").forEach((c) => {
-    c.onclick = () => playQueue(tracks, +c.dataset.i);
-    c.querySelector(".card-add").onclick = (e) => { e.stopPropagation(); queueMenu(tracks[+c.dataset.i]); };
+    const t = () => tracks[+c.dataset.i];
+    let held = false, timer = 0;
+    c.onclick = () => { if (held) { held = false; return; } playQueue(tracks, +c.dataset.i); };
+    c.querySelector(".card-add").onclick = (e) => { e.stopPropagation(); queueMenu(t()); };
+    // Press and hold a card (phones) or right-click it to queue it
+    c.addEventListener("pointerdown", (e) => { if (e.pointerType !== "mouse") timer = setTimeout(() => { held = true; navigator.vibrate?.(10); queueMenu(t()); }, 480); });
+    ["pointerup", "pointercancel", "pointerleave", "pointermove"].forEach((ev) => c.addEventListener(ev, (e) => { if (ev !== "pointermove" || Math.abs(e.movementX) + Math.abs(e.movementY) > 6) clearTimeout(timer); }));
+    c.addEventListener("contextmenu", (e) => { e.preventDefault(); clearTimeout(timer); if (!held) queueMenu(t()); });
   });
+  const skeleton = (n = 6) => `<div class="shelf">${'<div class="card sk" aria-hidden="true"><div class="sk-art"></div><div class="sk-line"></div><div class="sk-line short"></div></div>'.repeat(n)}</div>`;
 
   // ---------------- Views ----------------
   const main = $("#main");
@@ -823,8 +831,8 @@
     }
     main.innerHTML = `${mobileNav}<h1>${greeting()}</h1>
       ${recent.length ? `<h2>Recently played</h2><div id="recent"></div>` : ""}
-      ${SHELVES.map(([title], i) => `<h2>${esc(title)}</h2><div data-shelf="${i}"><div class="empty">Loading…</div></div>`).join("")}
-      <h2>Trending indie (Audius)</h2><div id="indie"><div class="empty">Loading…</div></div>`;
+      ${SHELVES.map(([title], i) => `<h2>${esc(title)}</h2><div data-shelf="${i}">${skeleton()}</div>`).join("")}
+      <h2>Trending indie (Audius)</h2><div id="indie">${skeleton()}</div>`;
     if (recent.length) { $("#recent").innerHTML = cardGrid(recent, "shelf"); bindCards($("#recent"), recent); }
     SHELVES.forEach(async (sh, i) => {
       const el = main.querySelector(`[data-shelf="${i}"]`);
@@ -1085,7 +1093,7 @@
   }
   window.addEventListener("hashchange", route);
   route();
-  if (state.current) updateNowPlaying();
+  updateNowPlaying();
 
   // iPhone: no pinch or double-tap zooming
   ["gesturestart", "gesturechange", "gestureend"].forEach((ev) => document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));

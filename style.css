@@ -1,19 +1,19 @@
-/* Encore — plum panels, one hot-pink accent, and a main panel tinted by the song that's playing. */
+/* Encore — calm graphite-plum surfaces, one rose accent, one typeface. */
 :root {
-  --bg: #1a1424;
-  --panel: #241b33;
-  --panel-2: #2f2442;
-  --hover: #3a2d52;
-  --line: #3d3155;
-  --text: #f3edff;
-  --muted: #a898c4;
+  --bg: #121016;
+  --panel: #19161f;
+  --panel-2: #221e2a;
+  --hover: #2a2533;
+  --line: #2b2634;
+  --text: #f5f2f8;
+  --muted: #9b93a8;
   --accent: #ff4f8b;
   --accent-ink: #2a0a17;
   --ambient: #5b3fa0;
-  --radius: 14px;
+  --radius: 12px;
   --player-h: 84px;
   --gap: 8px;
-  --display: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
+  --display: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --ui: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
@@ -487,4 +487,68 @@ body.np-open .np-progress, body.np-open #npQueue, body.np-open #npLike2 { displa
   body.np-open .player #nextBtn { grid-area: 2 / 5; }
   body.np-open .player #repeatBtn { grid-area: 2 / 6; }
   body.np-open .player #queueBtn { grid-area: 2 / 7; }
+}
+
+/* ======================================================================
+   Clean pass: fewer frames, flat surfaces, quieter controls
+   ====================================================================== */
+h1 { font-weight: 800; letter-spacing: -0.03em; }
+h2 { font-weight: 700; letter-spacing: -0.015em; font-size: 20px; margin: 36px 0 12px; }
+.main { background: var(--panel); }
+.main::before { content: ""; position: absolute; inset: 0 0 auto; height: 260px; pointer-events: none; z-index: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ambient) 22%, transparent), transparent); }
+.main > * { position: relative; z-index: 1; }
+.sidebar-section { border-top: 0; }
+.nav-link.active { background: var(--hover); }
+
+/* Cards: artwork and text, nothing else until you hover */
+.card { padding: 8px; border-radius: 10px; }
+.card img, .card .ph { border-radius: 8px; box-shadow: none; }
+.card-title { font-weight: 600; font-size: 14px; margin-top: 10px; }
+.card-sub { font-size: 12.5px; }
+.card-add { top: 14px; right: 14px; width: 30px; height: 30px; }
+@media (hover: none) { .card-add, .card-play { display: none; } }
+
+/* Loading placeholders instead of "Loading…" */
+.card.sk { pointer-events: none; }
+.sk-art, .sk-line { background: var(--panel-2); border-radius: 8px; }
+.sk-art { aspect-ratio: 1; }
+.sk-line { height: 11px; margin-top: 12px; width: 80%; border-radius: 6px; }
+.sk-line.short { width: 50%; margin-top: 8px; }
+@media (prefers-reduced-motion: no-preference) {
+  .sk-art, .sk-line { animation: sk 1.4s ease-in-out infinite; }
+  @keyframes sk { 50% { opacity: .55; } }
+}
+
+/* Lists */
+.tracks th { border-bottom-color: var(--line); font-weight: 500; }
+.tracks tr.track:hover td { background: var(--hover); }
+
+/* No player until something plays */
+body.idle { --player-h: 0px; }
+body.idle .player { display: none; }
+
+/* Player: one surface, softer controls */
+.player { background: var(--panel); border: 1px solid var(--line); }
+.player .icon-btn { color: var(--muted); }
+.player .icon-btn:hover, .player .icon-btn.on { color: var(--text); }
+.player #shuffleBtn.on, .player #repeatBtn.on, .player #npLike.on { color: var(--accent); }
+.play-btn { box-shadow: none; }
+input[type="range"] { height: 3px; }
+
+@media (max-width: 800px) {
+  /* Content runs edge to edge; no framed box */
+  .app { padding: var(--safe-t) 0 0; gap: 0; }
+  .main { border-radius: 0; background: var(--bg); padding: 18px 18px 28px; }
+  .main::before { height: 200px; }
+  h1 { font-size: 28px; margin-bottom: 14px; }
+  h2 { font-size: 19px; margin: 30px 0 10px; }
+  .shelf { grid-auto-columns: 144px; margin: 0 -18px; padding: 0 10px 4px; scrollbar-width: none; }
+  .shelf::-webkit-scrollbar, .main::-webkit-scrollbar { display: none; }
+  .main { scrollbar-width: none; }
+  .tracks thead { display: none; }
+  .player { left: 8px; right: 8px; border-radius: 14px; background: color-mix(in srgb, var(--panel-2) 92%, transparent);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+  .tabbar { border-top-color: var(--line); }
+  .tabbar .nav-link.active .ic { color: var(--text); }
 }
