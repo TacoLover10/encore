@@ -571,3 +571,9 @@ input[type="range"] { height: 3px; }
   .stat .n { font-size: 24px; }
   .stat .l { font-size: 12px; }
 }
+
+/* Mixer matches the other pages */
+.mixer { background: var(--panel); }
+@media (max-width: 800px) {
+  .mixer { border-radius: 0; background: var(--bg); padding: 18px 18px 28px; scrollbar-width: none; }
+}
