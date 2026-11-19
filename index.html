@@ -18,24 +18,23 @@
   <link rel="dns-prefetch" href="https://lrclib.net" />
   <link rel="dns-prefetch" href="https://api.deezer.com" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400..800&display=swap" />
-  <link rel="stylesheet" href="style.css?v=31" />
+  <link rel="stylesheet" href="style.css?v=32" />
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="logo"><span class="logo-dot"></span>Encore</div>
+      <div class="logo"><button class="icon-btn menu-btn" title="Menu" aria-label="Menu" aria-haspopup="true" aria-expanded="false"><span data-icon="menu"></span></button><span class="logo-dot"></span>Encore</div>
       <nav>
         <a href="#home" data-view="home" class="nav-link active"><span data-icon="home"></span> Home</a>
         <a href="#search" data-view="search" class="nav-link"><span data-icon="search"></span> Search</a>
-        <a href="#library" data-view="library" class="nav-link"><span data-icon="library"></span> Your Library</a>
-        <a href="#stats" data-view="stats" class="nav-link"><span data-icon="stats"></span> Monthly Stats</a>
-        <a href="#mix" data-view="mix" class="nav-link"><span data-icon="mixer"></span> Mixer</a>
+        <a href="#upload" data-view="upload" class="nav-link"><span data-icon="upload"></span> Upload</a>
       </nav>
-      <div class="sidebar-section">
-        <div class="sidebar-head"><span>Your music</span></div>
-        <div id="playlistList" class="playlist-list"></div>
-      </div>
     </aside>
+
+    <header class="topbar">
+      <button class="icon-btn menu-btn" title="Menu" aria-label="Menu" aria-haspopup="true" aria-expanded="false"><span data-icon="menu"></span></button>
+      <span class="topbar-logo"><span class="logo-dot"></span>Encore</span>
+    </header>
 
     <main id="main" class="main"></main>
   </div>
@@ -47,7 +46,6 @@
         <div id="npTitle" class="np-title">Nothing playing</div>
         <div id="npArtist" class="np-artist"></div>
       </div>
-      <button id="npLike" class="icon-btn like" title="Save to library"><span data-icon="heart"></span></button>
     </div>
     <div class="controls">
       <div class="buttons">
@@ -75,9 +73,7 @@
   <nav class="tabbar" aria-label="Main">
     <a href="#home" data-view="home" class="nav-link"><span data-icon="home"></span><span>Home</span></a>
     <a href="#search" data-view="search" class="nav-link"><span data-icon="search"></span><span>Search</span></a>
-    <a href="#library" data-view="library" class="nav-link"><span data-icon="library"></span><span>Library</span></a>
-    <a href="#stats" data-view="stats" class="nav-link"><span data-icon="stats"></span><span>Stats</span></a>
-    <a href="#mix" data-view="mix" class="nav-link"><span data-icon="mixer"></span><span>Mixer</span></a>
+    <a href="#upload" data-view="upload" class="nav-link"><span data-icon="upload"></span><span>Upload</span></a>
   </nav>
 
   <div id="videoBox" class="video-box hidden">
@@ -104,7 +100,7 @@
       </div>
       <div class="np-meta">
         <div style="min-width:0"><div id="npSongTitle" class="np-song-title"></div><div id="npSongArtist" class="np-song-artist"></div></div>
-        <span class="np-actions"><button id="npQueue" class="icon-btn" title="Queue"><span data-icon="queue"></span></button><button id="npSwitch" class="icon-btn" title="Choose a version (original, explicit, other uploads)"><span data-icon="swap"></span></button><button id="npLike2" class="icon-btn like" title="Like"><span data-icon="heart"></span></button></span>
+        <span class="np-actions"><button id="npQueue" class="icon-btn" title="Queue"><span data-icon="queue"></span></button><button id="npSwitch" class="icon-btn" title="Choose a version (original, explicit, other uploads)"><span data-icon="swap"></span></button></span>
       </div>
       <div class="np-progress"><span id="npCur">0:00</span><input id="npSeek" type="range" min="0" max="1000" value="0" /><span id="npDur">0:00</span></div>
     </div>
@@ -115,13 +111,16 @@
     <div class="q-body"></div>
   </aside>
 
+  <div id="menu" class="menu hidden" role="menu">
+    <a href="#stats" data-view="stats" class="menu-item" role="menuitem"><span data-icon="stats"></span> Monthly Stats</a>
+  </div>
+
   <div id="modal" class="modal hidden"></div>
   <div id="toast" class="toast hidden"></div>
   <audio id="audio" preload="auto" playsinline></audio>
-  <script src="icons.js?v=30"></script>
-  <script src="app.js?v=30"></script>
-  <script src="np.js?v=28"></script>
+  <script src="icons.js?v=32"></script>
+  <script src="app.js?v=32"></script>
+  <script src="np.js?v=32"></script>
   <script src="explicit.js?v=10"></script>
-  <script src="mixer.js?v=16"></script>
 </body>
 </html>

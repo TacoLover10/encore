@@ -55,9 +55,7 @@
     $("#npBigArt").src = (t && t.art) || "";
     $("#npSongTitle").textContent = t ? t.title : "Nothing playing";
     $("#npSongArtist").textContent = t ? t.artist : "";
-    $("#npLike2").innerHTML = icon(t && E.isLiked(t) ? "heartFill" : "heart");
     $("#npSwitch").classList.toggle("hidden", !isYT());
-    $("#npLike2").classList.toggle("on", !!(t && E.isLiked(t)));
     $("#npBigArt").classList.toggle("hidden", ui.tab !== "song");
     $("#npVideoSlot").classList.toggle("hidden", ui.tab !== "video");
     $("#npLyrics").classList.toggle("hidden", ui.tab !== "lyrics");
@@ -158,7 +156,6 @@
   $("#npClose").onclick = closeNP;
   $("#npSwitch").onclick = () => E.switchVersion();
   $("#npSeek").oninput = (e) => { const d = engine.duration(); if (d) engine.seek((e.target.value / 1000) * d); };
-  $("#npLike2").onclick = () => { if (state.current) { E.toggleLike(state.current); render(); } };
   $("#npArt").onclick = () => state.current && openNP();
   $(".now .np-text").onclick = () => state.current && openNP();
   $("#lyricsBtn").onclick = () => {

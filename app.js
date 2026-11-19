@@ -32,7 +32,6 @@
   };
 
   const state = {
-    liked: store.get("liked", []),             // [track]
     history: store.get("history", []),         // [{track, ts, secs}]
     recent: store.get("recent", []),           // last 5 searches [{q, at, track}]
     queue: [], index: -1,                      // tracks queued by you carry q: true
@@ -43,7 +42,7 @@
   };
   const save = (k) => store.set(k, state[k]);
   // Playlists and code sync were removed; clear what they left behind
-  ["playlists", "syncCode", "syncKey", "syncAt", "syncPrint", "syncLast"].forEach((k) => localStorage.removeItem("encore:" + k));
+  ["playlists", "liked", "syncCode", "syncKey", "syncAt", "syncPrint", "syncLast"].forEach((k) => localStorage.removeItem("encore:" + k));
 
   // IndexedDB for uploaded audio files
   const idb = (() => {
@@ -598,8 +597,6 @@
     $("#npArtist").textContent = t ? t.artist : "";
     $("#npArt").src = t?.art || "";
     setAmbient(t && t.art);
-    $("#npLike").innerHTML = icon(t && isLiked(t) ? "heartFill" : "heart");
-    $("#npLike").classList.toggle("on", !!(t && isLiked(t)));
     document.title = t ? `${t.title} · ${t.artist}` : "Encore";
     document.querySelectorAll("tr.track").forEach((tr) => tr.classList.toggle("playing", t && tr.dataset.id === t.id));
     if ("mediaSession" in navigator && t) {
@@ -655,7 +652,6 @@
   };
   $("#shuffleBtn").onclick = () => { state.shuffle = !state.shuffle; save("shuffle"); syncModes(); };
   $("#repeatBtn").onclick = () => { state.repeat = { off: "all", all: "one", one: "off" }[state.repeat]; save("repeat"); syncModes(); };
-  $("#npLike").onclick = () => state.current && toggleLike(state.current);
   document.addEventListener("keydown", (e) => {
     if (e.target.matches("input, textarea")) return;
     if (e.code === "Space") { e.preventDefault(); $("#playBtn").click(); }
@@ -665,38 +661,6 @@
   syncModes();
 
   // ---------------- Library & playlists ----------------
-  const isLiked = (t) => state.liked.some((x) => x.id === t.id);
-  function toggleLike(t) {
-    if (isLiked(t)) { state.liked = state.liked.filter((x) => x.id !== t.id); toast("Removed from Liked Songs"); }
-    else { state.liked.unshift(slim(t)); toast("Added to Liked Songs"); }
-    save("liked"); updateNowPlaying(); renderSidebar();
-    document.querySelectorAll(`[data-like="${CSS.escape(t.id)}"]`).forEach((b) => (b.innerHTML = icon(isLiked(t) ? "heartFill" : "heart")));
-  }
-  function renderSidebar() {
-    const cur = location.hash;
-    $("#playlistList").innerHTML =
-      `<a class="playlist-item ${cur === "#liked" ? "active" : ""}" href="#liked">${icon("heartFill")} Liked Songs · ${state.liked.length}</a>` +
-      `<a class="playlist-item ${cur === "#files" ? "active" : ""}" href="#files">${icon("folder")} My Files</a>`;
-  }
-  // ---------------- Modal / toast ----------------
-  function modal(html) {
-    const m = $("#modal");
-    m.innerHTML = `<div class="modal-box">${html}</div>`;
-    m.classList.remove("hidden");
-    m.onclick = (e) => { if (e.target === m || e.target.matches("[data-close]")) closeModal(); };
-    return m;
-  }
-  const closeModal = () => $("#modal").classList.add("hidden");
-  let toastT;
-  function toast(msg, action) {
-    const t = $("#toast"); t.textContent = msg; t.classList.remove("hidden");
-    if (action) {
-      const b = document.createElement("button"); b.className = "toast-btn"; b.textContent = action.label;
-      b.onclick = () => { t.classList.add("hidden"); action.run(); };
-      t.appendChild(b);
-    }
-    clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hidden"), action ? 6000 : 2400);
-  }
   // ---------------- Track list component ----------------
   // ctx: { removable: fn(track) } optional
   function trackTable(tracks, ctx = {}) {
@@ -708,7 +672,6 @@
           <div style="min-width:0"><div class="t-title">${esc(t.title)} ${badge(t)}</div><div class="t-artist">${esc(t.artist)}</div></div></div></td>
         <td class="t-src" style="text-align:right">${t.duration ? fmt(t.duration) : ""}</td>
         <td class="t-actions">
-          <button data-like="${esc(t.id)}" title="Like">${icon(isLiked(t) ? "heartFill" : "heart")}</button>
           <button data-add title="Add to queue">${icon("queueAdd")}</button>
           ${ctx.removable ? `<button data-remove title="Remove">${icon("close")}</button>` : ""}
         </td></tr>`).join("")}
@@ -720,7 +683,6 @@
       tr.ondblclick = () => playQueue(tracks, i);
       tr.querySelector(".t-main").onclick = () => playQueue(tracks, i);
       tr.querySelector(".t-num").onclick = () => playQueue(tracks, i);
-      tr.querySelector("[data-like]").onclick = (e) => { e.stopPropagation(); toggleLike(t); };
       tr.querySelector("[data-add]").onclick = (e) => { e.stopPropagation(); queueMenu(t); };
       const rm = tr.querySelector("[data-remove]");
       if (rm) rm.onclick = (e) => { e.stopPropagation(); ctx.removable(t); };
@@ -747,7 +709,7 @@
 
   // ---------------- Views ----------------
   const main = $("#main");
-  const mobileNav = `<div class="mobile-nav"><a class="tab" href="#home">Home</a><a class="tab" href="#search">Search</a><a class="tab" href="#library">Library</a><a class="tab" href="#stats">Stats</a><a class="tab" href="#mix">Mixer</a></div>`;
+  const mobileNav = "";
   const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; };
   const YEAR = new Date().getFullYear();
   // Home shelves come from Apple's US charts (what people in the US are playing right now);
@@ -931,32 +893,6 @@
     $("#clearRecent").onclick = () => { state.recent = []; save("recent"); renderRecent(box, searchAgain); };
   }
 
-  function viewLibrary() {
-    main.innerHTML = `${mobileNav}<h1>Your Library</h1>
-      <div class="lib-list">
-        <a class="lib-row" href="#liked"><span class="lib-ic liked">${icon("heartFill")}</span>
-          <span class="lib-text"><span class="lib-name">Liked Songs</span><span class="lib-sub">${state.liked.length} song${state.liked.length === 1 ? "" : "s"}</span></span>${icon("chevron")}</a>
-        <a class="lib-row" href="#files"><span class="lib-ic">${icon("folder")}</span>
-          <span class="lib-text"><span class="lib-name">My Files</span><span class="lib-sub">Songs you've uploaded</span></span>${icon("chevron")}</a>
-      </div>`;
-  }
-
-  function playlistHeader({ kind, name, count, secs, cover, icon: iconHtml, actions = "" }) {
-    return `<div class="pl-head">
-      <div class="pl-cover">${cover ? `<img src="${esc(cover)}" alt="">` : iconHtml}</div>
-      <div><div class="pl-kind">${kind}</div><div class="pl-name">${esc(name)}</div>
-      <div class="t-src">${count} songs${secs ? " · " + fmt(secs) : ""}</div>
-      <div class="row" style="margin-top:16px"><button class="btn" id="playAll">${icon("play")} Play</button><button class="btn ghost" id="queueAll">${icon("queueAdd")} Add all to queue</button>${actions}</div></div></div>`;
-  }
-
-  function viewLiked() {
-    const tracks = state.liked;
-    main.innerHTML = mobileNav + playlistHeader({ kind: "Collection", name: "Liked Songs", count: tracks.length, secs: tracks.reduce((a, t) => a + (t.duration || 0), 0), icon: icon("heartFill") }) + `<div id="list"></div>`;
-    $("#list").innerHTML = trackTable(tracks, { removable: 1, empty: "Tap the heart on any song to save it here." });
-    bindTracks($("#list"), tracks, { removable: (t) => { toggleLike(t); viewLiked(); } });
-    $("#playAll").onclick = () => playQueue(tracks, 0);
-    $("#queueAll").onclick = () => queueAll(tracks);
-  }
   function queueAll(tracks) {
     if (!tracks.length) return;
     if (!state.current) return playQueue(tracks, 0);
@@ -966,15 +902,19 @@
   }
 
   async function viewFiles() {
-    main.innerHTML = `${mobileNav}<div class="pl-head"><div class="pl-cover">${icon("folder")}</div><div><div class="pl-kind">Local</div><div class="pl-name">My Files</div>
-      <div class="t-src">Songs you own, stored privately in this browser. Full length, works offline.</div>
-      <div class="row" style="margin-top:16px"><button class="btn" id="playAll">${icon("play")} Play</button>
-      <label class="btn ghost">${icon("upload")} Add files<input type="file" id="fileIn" accept="audio/*" multiple hidden></label></div></div></div>
-      <div class="dropzone" id="drop">Drag & drop MP3, M4A, FLAC, WAV or OGG files here<br><small>Tip: name files “Artist - Title.mp3” for nicer display</small></div>
-      <div id="list"><div class="empty">Loading…</div></div>`;
+    main.innerHTML = `<h1>Upload</h1>
+      <label class="upload-zone" id="drop">
+        <span class="uz-ic">${icon("upload")}</span>
+        <span class="uz-title">Add your music</span>
+        <span class="uz-sub">Tap to choose songs from your device, or drag them here. They're saved privately in this browser and play in full, even offline.</span>
+        <input type="file" id="fileIn" accept="audio/*" multiple hidden>
+      </label>
+      <div class="sec-head"><h2>Your uploads</h2><button class="btn ghost small" id="playAll">${icon("play")} Play all</button></div>
+      <div id="list"></div>`;
     const recs = await idb.all().catch(() => []);
     const tracks = recs.sort((a, b) => b.added - a.added).map((r) => r.meta);
-    $("#list").innerHTML = trackTable(tracks, { removable: 1, empty: "No files yet." });
+    $("#list").innerHTML = trackTable(tracks, { removable: 1, empty: "Nothing uploaded yet. Name files “Artist - Title.mp3” and they'll show up nicely." });
+    $("#playAll").classList.toggle("hidden", !tracks.length);
     bindTracks($("#list"), tracks, { removable: async (t) => { if (!confirm(`Remove “${t.title}” from this browser?`)) return; await idb.del(t.id); viewFiles(); } });
     $("#playAll").onclick = () => playQueue(tracks, 0);
     $("#fileIn").onchange = (e) => importFiles(e.target.files);
@@ -1083,14 +1023,26 @@
     if (mk) { mk.onclick = () => playQueue(topList, 0); $("#qTop").onclick = () => queueAll(topList); }
   }
 
+  // ---------------- Menu (top-left ☰): Monthly Stats ----------------
+  const menu = $("#menu");
+  function closeMenu() { menu.classList.add("hidden"); document.querySelectorAll(".menu-btn").forEach((b) => b.setAttribute("aria-expanded", "false")); }
+  document.querySelectorAll(".menu-btn").forEach((b) => (b.onclick = (e) => {
+    e.stopPropagation();
+    const open = menu.classList.toggle("hidden") === false;
+    b.setAttribute("aria-expanded", String(open));
+    if (open) { const r = b.getBoundingClientRect(); menu.style.top = r.bottom + 6 + "px"; menu.style.left = Math.max(8, r.left) + "px"; }
+  }));
+  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) closeMenu(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
+
   // ---------------- Router ----------------
   function route() {
     const h = location.hash.slice(1) || "home";
     const [view] = h.split("/");
-    document.querySelectorAll(".nav-link").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
-    renderSidebar();
+    document.querySelectorAll(".nav-link, .menu-item").forEach((a) => a.classList.toggle("active", a.dataset.view === (view === "files" ? "upload" : view)));
     main.scrollTop = 0;
-    ({ home: viewHome, search: viewSearch, library: viewLibrary, liked: viewLiked, files: viewFiles, stats: viewStats }[view] || viewHome)();
+    closeMenu();
+    ({ home: viewHome, search: viewSearch, upload: viewFiles, files: viewFiles, stats: viewStats }[view] || viewHome)();
   }
   window.addEventListener("hashchange", route);
   route();
@@ -1118,5 +1070,5 @@
   setTimeout(() => loadYT(), 1500);
 
   // Shared with np.js (Now Playing screen + lyrics)
-  window.Encore = { state, engine, esc, fmt, store, toast, timeoutFetch, toggleLike, isLiked, switchVersion, addToQueue, queueMenu, search: searchAll, refresh: () => { renderSidebar(); route(); }, getMode: () => mode };
+  window.Encore = { state, engine, esc, fmt, store, toast, timeoutFetch, switchVersion, addToQueue, queueMenu, search: searchAll, refresh: () => route(), getMode: () => mode };
 })();
